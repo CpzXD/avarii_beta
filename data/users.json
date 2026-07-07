@@ -1,0 +1,20 @@
+[
+  {
+    "id": "admin-demo",
+    "prenume": "Demo",
+    "nume": "Admin",
+    "email": "admin@demo.ro",
+    "parola": "admin123",
+    "rol": "admin",
+    "creatLa": "2026-07-06T16:09:17.023Z"
+  },
+  {
+    "id": "user-demo",
+    "prenume": "Andrei",
+    "nume": "Popescu",
+    "email": "user@demo.ro",
+    "parola": "user123",
+    "rol": "user",
+    "creatLa": "2026-07-06T16:09:17.023Z"
+  }
+]

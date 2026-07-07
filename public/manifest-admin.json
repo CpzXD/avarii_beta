@@ -1,0 +1,25 @@
+{
+  "name": "Avarii Iluminat - Admin",
+  "short_name": "Avarii Admin",
+  "description": "Admin avarii",
+  "start_url": "/admin.html",
+  "scope": "/admin.html",
+  "display": "standalone",
+  "background_color": "#1a2332",
+  "theme_color": "#1a2332",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/admin-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/admin-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
