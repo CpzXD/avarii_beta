@@ -91,7 +91,7 @@ function urmareste(id, follower) {
   if (!exista) {
     avarie.followers.push({ ...follower, data: new Date().toISOString() });
   }
-  avarie.urmaritori = Math.max(avarie.urmaritori || 0, avarie.followers.length || 1);
+  avarie.urmaritori = avarie.followers.length;
   salveazaToate(avarii);
   return avarie;
 }

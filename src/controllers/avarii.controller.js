@@ -2,6 +2,7 @@ const { randomUUID } = require('crypto');
 const avariiModel = require('../models/avarii.model');
 const usersModel = require('../models/users.model');
 const { isInsideServiceArea } = require('../config/service-area');
+const { reverseGeocode } = require('../services/geocoding.service');
 
 function listaAvarii(req, res) {
   let avarii = avariiModel.citesteToate();
@@ -17,7 +18,7 @@ function detaliiAvarie(req, res) {
   res.json(avarie);
 }
 
-function creazaAvarie(req, res) {
+async function creazaAvarie(req, res) {
   const { titlu, categorie, descriere, lat, lng, adresaText, userId, numeAutor, emailAutor } = req.body;
   if (!titlu) return res.status(400).json({ eroare: 'Titlul este obligatoriu.' });
   if ((!lat || !lng) && !adresaText) {
@@ -31,6 +32,13 @@ function creazaAvarie(req, res) {
 
   const user = userId ? usersModel.gasesteDupaId(userId) : null;
   const pozaUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  const adresaCurata = String(adresaText || '').trim();
+  const adresaGenerica = !adresaCurata
+    || ['locație gps', 'locatie gps', 'gps'].includes(adresaCurata.toLowerCase())
+    || /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(adresaCurata);
+  const adresaRezolvata = !adresaGenerica
+    ? adresaCurata
+    : (latitude !== null && longitude !== null ? await reverseGeocode(latitude, longitude) : '');
   const acum = new Date().toISOString();
 
   const avarieNoua = {
@@ -42,13 +50,13 @@ function creazaAvarie(req, res) {
     actualizatLa: acum,
     lat: latitude,
     lng: longitude,
-    adresaText: adresaText || null,
+    adresaText: adresaRezolvata || null,
     status: 'noua',
     pozaUrl,
     userId: user ? user.id : (userId || null),
     autor: user ? `${user.prenume} ${user.nume}` : (numeAutor || 'Cetățean'),
     emailAutor: user ? user.email : (emailAutor || ''),
-    urmaritori: 1,
+    urmaritori: user ? 1 : 0,
     followers: user ? [{ userId: user.id, nume: `${user.prenume} ${user.nume}`, email: user.email, data: acum }] : [],
     feedback: [],
     statusHistory: [{ status: 'noua', mesaj: 'Sesizarea a fost trimisă.', autor: 'sistem', data: acum }],
@@ -86,8 +94,13 @@ function adaugaMesaj(req, res) {
 }
 
 function urmaresteAvarie(req, res) {
-  const { userId, nume, email, deviceId } = req.body;
-  const follower = { userId: userId || null, nume: nume || 'Cetățean', email: email || '', deviceId: deviceId || '' };
+  const { userId, nume, email } = req.body;
+  if (!userId) return res.status(401).json({ eroare: 'Trebuie să fii conectat pentru a urmări o sesizare.' });
+  const user = usersModel.gasesteDupaId(userId);
+  if (!user || String(user.email).toLowerCase() !== String(email || '').toLowerCase()) {
+    return res.status(403).json({ eroare: 'Contul nu a putut fi verificat.' });
+  }
+  const follower = { userId: user.id, nume: nume || `${user.prenume} ${user.nume}`, email: user.email };
   const avarieActualizata = avariiModel.urmareste(req.params.id, follower);
   if (!avarieActualizata) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
   res.json(avarieActualizata);
