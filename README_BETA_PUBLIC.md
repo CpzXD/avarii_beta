@@ -85,3 +85,7 @@ Safari -> Share -> Add to Home Screen
 ## Observatie importanta pentru beta
 
 Aceasta varianta salveaza datele in fisiere JSON si pozele in folderul local uploads. Este potrivita pentru prezentare si beta restransa. Pentru lansare publica reala, datele trebuie mutate intr-o baza de date si pozele intr-un storage persistent.
+
+## Persistență pe Render
+
+Pentru ca sesizările să rămână după restart/redeploy, vezi `README_PERSISTENTA_RENDER.md`.

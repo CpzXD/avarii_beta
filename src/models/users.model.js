@@ -1,33 +1,39 @@
 const fs = require('fs');
 const path = require('path');
+const { dataDir, bundledDataDir } = require('../config/paths');
 
-const DB_FILE = path.join(__dirname, '..', '..', 'data', 'users.json');
+const DB_FILE = path.join(dataDir, 'users.json');
+const SEED_FILE = path.join(bundledDataDir, 'users.json');
 
 function initDb() {
   const dir = path.dirname(DB_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   if (!fs.existsSync(DB_FILE)) {
-    const demoUsers = [
-      {
-        id: 'admin-demo',
-        prenume: 'Demo',
-        nume: 'Admin',
-        email: 'admin@demo.ro',
-        parola: 'admin123',
-        rol: 'admin',
-        creatLa: new Date().toISOString(),
-      },
-      {
-        id: 'user-demo',
-        prenume: 'Andrei',
-        nume: 'Popescu',
-        email: 'user@demo.ro',
-        parola: 'user123',
-        rol: 'user',
-        creatLa: new Date().toISOString(),
-      },
-    ];
-    fs.writeFileSync(DB_FILE, JSON.stringify(demoUsers, null, 2));
+    if (DB_FILE !== SEED_FILE && fs.existsSync(SEED_FILE)) {
+      fs.copyFileSync(SEED_FILE, DB_FILE);
+    } else {
+      const demoUsers = [
+        {
+          id: 'admin-demo',
+          prenume: 'Demo',
+          nume: 'Admin',
+          email: 'admin@demo.ro',
+          parola: 'admin123',
+          rol: 'admin',
+          creatLa: new Date().toISOString(),
+        },
+        {
+          id: 'user-demo',
+          prenume: 'Andrei',
+          nume: 'Popescu',
+          email: 'user@demo.ro',
+          parola: 'user123',
+          rol: 'user',
+          creatLa: new Date().toISOString(),
+        },
+      ];
+      fs.writeFileSync(DB_FILE, JSON.stringify(demoUsers, null, 2));
+    }
   }
 }
 
@@ -37,6 +43,7 @@ function citesteToti() {
 }
 
 function salveazaToti(users) {
+  initDb();
   fs.writeFileSync(DB_FILE, JSON.stringify(users, null, 2));
 }
 

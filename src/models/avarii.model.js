@@ -1,12 +1,20 @@
 const fs = require('fs');
 const path = require('path');
+const { dataDir, bundledDataDir } = require('../config/paths');
 
-const DB_FILE = path.join(__dirname, '..', '..', 'data', 'avarii.json');
+const DB_FILE = path.join(dataDir, 'avarii.json');
+const SEED_FILE = path.join(bundledDataDir, 'avarii.json');
 
 function initDb() {
   const dir = path.dirname(DB_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
+  if (!fs.existsSync(DB_FILE)) {
+    if (DB_FILE !== SEED_FILE && fs.existsSync(SEED_FILE)) {
+      fs.copyFileSync(SEED_FILE, DB_FILE);
+    } else {
+      fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
+    }
+  }
 }
 
 function citesteToate() {
@@ -16,6 +24,7 @@ function citesteToate() {
 }
 
 function salveazaToate(avarii) {
+  initDb();
   fs.writeFileSync(DB_FILE, JSON.stringify(avarii, null, 2));
 }
 

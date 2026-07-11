@@ -1,9 +1,12 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const { uploadsDir } = require('../config/paths');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '..', '..', 'uploads'));
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const extensie = path.extname(file.originalname);

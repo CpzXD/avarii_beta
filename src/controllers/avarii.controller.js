@@ -1,6 +1,7 @@
 const { randomUUID } = require('crypto');
 const avariiModel = require('../models/avarii.model');
 const usersModel = require('../models/users.model');
+const { isInsideServiceArea } = require('../config/service-area');
 
 function listaAvarii(req, res) {
   let avarii = avariiModel.citesteToate();
@@ -22,6 +23,11 @@ function creazaAvarie(req, res) {
   if ((!lat || !lng) && !adresaText) {
     return res.status(400).json({ eroare: 'Trebuie fie locatie GPS (lat/lng), fie adresa scrisa manual.' });
   }
+  const latitude = lat ? Number(lat) : null;
+  const longitude = lng ? Number(lng) : null;
+  if ((latitude !== null || longitude !== null) && !isInsideServiceArea(latitude, longitude)) {
+    return res.status(400).json({ eroare: 'Locația trebuie să fie în zona Constanța–Mamaia.' });
+  }
 
   const user = userId ? usersModel.gasesteDupaId(userId) : null;
   const pozaUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -34,8 +40,8 @@ function creazaAvarie(req, res) {
     descriere: descriere || '',
     dataRaportare: acum,
     actualizatLa: acum,
-    lat: lat ? parseFloat(lat) : null,
-    lng: lng ? parseFloat(lng) : null,
+    lat: latitude,
+    lng: longitude,
     adresaText: adresaText || null,
     status: 'noua',
     pozaUrl,

@@ -112,14 +112,15 @@
   </main>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/map-config.js"></script>
 <script>
 const labels={noua:'Nouă',confirmata:'Confirmată',in_lucru:'În lucru',rezolvata:'Rezolvată'};
 const colors={noua:'#e11d48',confirmata:'#f97316',in_lucru:'#0d9488',rezolvata:'#22c55e'};
 let user=JSON.parse(localStorage.getItem('user')||'null');
 let deviceId=localStorage.getItem('deviceId'); if(!deviceId){deviceId='dev-'+Date.now()+'-'+Math.round(Math.random()*1e6);localStorage.setItem('deviceId',deviceId)}
 let avarii=[], activeMarkers=[], activeFilter='active_only', activeMap, reportMap, reportPin, latitudine=null, longitudine=null, gpsStarted=false, gpsWatchId=null, deferredInstallPrompt=null;
-const defaultCenter=[44.1765,28.6348];
-const bounds=L.latLngBounds([44.130,28.580],[44.235,28.690]);
+const defaultCenter=AVARII_MAP_CONFIG.center;
+const bounds=avariiMapBounds();
 function $(id){return document.getElementById(id)}
 function fmt(d){return new Date(d).toLocaleString('ro-RO',{dateStyle:'short',timeStyle:'short'})}
 function updateUserUi(){
@@ -129,23 +130,27 @@ function updateUserUi(){
   renderAccount();renderMine();
 }
 function initMaps(){
-  activeMap=L.map('active-map',{minZoom:12,maxZoom:18}).setView(defaultCenter,13);activeMap.setMaxBounds(bounds);activeMap.on('drag',()=>activeMap.panInsideBounds(bounds,{animate:false}));
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(activeMap);
-  reportMap=L.map('report-map',{minZoom:12,maxZoom:18}).setView(defaultCenter,13);reportMap.setMaxBounds(bounds);reportMap.on('drag',()=>reportMap.panInsideBounds(bounds,{animate:false}));
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(reportMap);
+  activeMap=createAvariiMap('active-map',{center:defaultCenter,zoom:13});
+  reportMap=createAvariiMap('report-map',{center:defaultCenter,zoom:13});
   reportMap.on('click',e=>{setReportPin(e.latlng.lat,e.latlng.lng, true);$('gps-status').textContent='📍 Pin ajustat manual. Dacă este corect, trimite sesizarea.';$('gps-status').className='hint gps-ok';});
 }
 function setReportPin(lat,lng,manual=false){
-  latitudine=lat;longitudine=lng;
+  if(!isInsideAvariiArea(lat,lng)){
+    reportMap.fitBounds(bounds,{padding:[18,18]});
+    gpsFail('Locația este în afara zonei Constanța–Mamaia. Pune pinul în zona acoperită de hartă.');
+    return false;
+  }
+  latitudine=Number(lat);longitudine=Number(lng);
   if(reportPin) reportMap.removeLayer(reportPin);
-  reportPin=L.marker([lat,lng],{draggable:true}).addTo(reportMap);
-  reportPin.on('dragend',e=>{const p=e.target.getLatLng();latitudine=p.lat;longitudine=p.lng;$('gps-status').textContent='📍 Pin ajustat manual. Dacă este corect, trimite sesizarea.';$('gps-status').className='hint gps-ok';});
-  reportMap.setView([lat,lng],manual?17:16);
+  reportPin=L.marker([latitudine,longitudine],{draggable:true}).addTo(reportMap);
+  reportPin.on('dragend',e=>{const p=e.target.getLatLng();if(!isInsideAvariiArea(p.lat,p.lng)){e.target.setLatLng([latitudine,longitudine]);$('gps-status').textContent='📍 Pinul trebuie să rămână în zona Constanța–Mamaia.';$('gps-status').className='hint gps-lipsa';return}latitudine=p.lat;longitudine=p.lng;$('gps-status').textContent='📍 Pin ajustat manual. Dacă este corect, trimite sesizarea.';$('gps-status').className='hint gps-ok';checkNearbyDuplicate();});
+  reportMap.setView([latitudine,longitudine],manual?17:16);
   checkNearbyDuplicate();
+  return true;
 }
 function gpsSuccess(pos){
   const lat=pos.coords.latitude, lng=pos.coords.longitude;
-  setReportPin(lat,lng,false);
+  if(!setReportPin(lat,lng,false))return;
   const precizie=pos.coords.accuracy?` · precizie aprox. ${Math.round(pos.coords.accuracy)} m`:'';
   $('gps-status').textContent=`📍 Pin pus automat pe locația ta${precizie}. Verifică dacă este corect sau mută-l puțin pe hartă.`;
   $('gps-status').className='hint gps-ok';
@@ -214,7 +219,7 @@ function renderAccount(){
 function openTab(tab){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));$('page-'+tab).classList.add('active');document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');location.hash=tab==='report'?'raporteaza':tab;setTimeout(()=>{activeMap&&activeMap.invalidateSize();reportMap&&reportMap.invalidateSize();if(tab==='report'&&!latitudine)detectGps()},120)}
 document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));document.querySelectorAll('[data-open]').forEach(a=>a.onclick=(e)=>{e.preventDefault();openTab(a.dataset.open)});$('btn-gps').onclick=()=>detectGps(true);
 document.querySelectorAll('#filters button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#filters button').forEach(x=>x.classList.remove('active'));b.classList.add('active');activeFilter=b.dataset.f;renderActive()});
-$('form-sesizare').addEventListener('submit',async(e)=>{e.preventDefault();const btn=$('btn-trimite'),msg=$('mesaj-rezultat');btn.disabled=true;btn.textContent='Se trimite...';msg.className='result';msg.textContent='';const fd=new FormData();fd.append('titlu',$('titlu').value);fd.append('categorie',$('categorie').value);fd.append('descriere',$('descriere').value);if(user){fd.append('userId',user.id);fd.append('numeAutor',`${user.prenume} ${user.nume}`);fd.append('emailAutor',user.email)}if(latitudine&&longitudine){fd.append('lat',latitudine);fd.append('lng',longitudine)}else{fd.append('adresaText',$('adresaText').value)}const poza=$('poza').files[0];if(poza)fd.append('poza',poza);try{const r=await fetch('/avarii',{method:'POST',body:fd});const data=await r.json();if(!r.ok)throw new Error(data.eroare||'Nu am putut trimite.');msg.className='result ok';msg.innerHTML=`✅ Sesizarea a fost trimisă. <a href="/sesizare-detalii.html?id=${data.id}&from=user">Vezi detalii</a>`;$('form-sesizare').reset();await load();openTab('mine')}catch(err){msg.className='result err';msg.textContent='❌ '+err.message}finally{btn.disabled=false;btn.textContent='Trimite sesizarea'}});
+$('form-sesizare').addEventListener('submit',async(e)=>{e.preventDefault();const btn=$('btn-trimite'),msg=$('mesaj-rezultat');if(latitudine&&longitudine&&!isInsideAvariiArea(latitudine,longitudine)){msg.className='result err';msg.textContent='❌ Pinul trebuie să fie în zona Constanța–Mamaia.';return}btn.disabled=true;btn.textContent='Se trimite...';msg.className='result';msg.textContent='';const fd=new FormData();fd.append('titlu',$('titlu').value);fd.append('categorie',$('categorie').value);fd.append('descriere',$('descriere').value);if(user){fd.append('userId',user.id);fd.append('numeAutor',`${user.prenume} ${user.nume}`);fd.append('emailAutor',user.email)}if(latitudine&&longitudine){fd.append('lat',latitudine);fd.append('lng',longitudine)}else{fd.append('adresaText',$('adresaText').value)}const poza=$('poza').files[0];if(poza)fd.append('poza',poza);try{const r=await fetch('/avarii',{method:'POST',body:fd});const data=await r.json();if(!r.ok)throw new Error(data.eroare||'Nu am putut trimite.');msg.className='result ok';msg.innerHTML=`✅ Sesizarea a fost trimisă. <a href="/sesizare-detalii.html?id=${data.id}&from=user">Vezi detalii</a>`;$('form-sesizare').reset();await load();openTab('mine')}catch(err){msg.className='result err';msg.textContent='❌ '+err.message}finally{btn.disabled=false;btn.textContent='Trimite sesizarea'}});
 async function load(){avarii=await (await fetch('/avarii')).json();renderActive();renderMine();checkNearbyDuplicate()}
 initMaps();updateUserUi();load();setInterval(load,10000);
 if(location.hash.includes('raporteaza'))openTab('report');else if(location.hash.includes('mine'))openTab('mine');else if(location.hash.includes('account'))openTab('account');else openTab('active');
