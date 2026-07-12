@@ -212,3 +212,7 @@ ORDER BY data_raportare DESC, id DESC;
 Ordinea este globală și deterministă: cele mai noi sesizări apar primele, iar `id DESC` separă stabil înregistrările care au aceeași secundă de raportare. `harta.html` afișează toate punctele primite pe o singură hartă, fără listă paginată dedesubt. Detaliile se deschid din marker, iar fila „Ale mele” rămâne separată. Panoul `admin.html` păstrează lista de administrare și harta, dar fără paginare. Filtrele și căutarea se aplică întregului set încărcat.
 
 Sesizările active sunt păstrate fără expirare. Numai cele rezolvate sunt eliminate automat după 90 de zile, conform secțiunii despre retenție.
+
+## Registrul npm folosit la deploy
+
+Fișierul `package-lock.json` folosește registry-ul public `https://registry.npmjs.org/`, astfel încât `npm ci` să funcționeze pe Render. Nu comiteți în repository un lockfile generat cu URL-uri către un registry privat sau intern inaccesibil din Render.
