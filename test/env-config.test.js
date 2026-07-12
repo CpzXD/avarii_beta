@@ -38,3 +38,20 @@ test('serverul se oprește înainte de inițializare când AUTH_SECRET lipsește
   assert.match(`${result.stdout}\n${result.stderr}`, /AUTH_SECRET/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /Server pornit/);
 });
+
+
+test('configurația push este opțională, dar cele trei valori VAPID trebuie setate împreună', () => {
+  const base = { DATABASE_URL: 'postgresql://test', AUTH_SECRET: 'secret-test' };
+
+  assert.doesNotThrow(() => validateRuntimeEnv(base));
+  assert.throws(
+    () => validateRuntimeEnv({ ...base, VAPID_PUBLIC_KEY: 'A'.repeat(87) }),
+    /incompletă|VAPID_PRIVATE_KEY/i
+  );
+  assert.doesNotThrow(() => validateRuntimeEnv({
+    ...base,
+    VAPID_PUBLIC_KEY: 'A'.repeat(87),
+    VAPID_PRIVATE_KEY: 'B'.repeat(43),
+    VAPID_SUBJECT: 'mailto:test@example.com',
+  }));
+});

@@ -119,6 +119,7 @@
 <script src="/map-config.js?v=20260712-10"></script>
 <script src="/location-utils.js?v=20260712-10"></script>
 <script src="/security-client.js?v=20260712-10"></script>
+<script src="/push-client.js?v=20260712-11"></script>
 <script>
 const labels={noua:'Nouă',confirmata:'Confirmată',in_lucru:'În lucru',rezolvata:'Rezolvată'};
 const colors={noua:'#e11d48',confirmata:'#f97316',in_lucru:'#0d9488',rezolvata:'#22c55e'};
@@ -259,7 +260,7 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredIns
 window.addEventListener('appinstalled',()=>{localStorage.setItem('pwaInstalled','1');deferredInstallPrompt=null;wireInstallButton()});
 function renderAccount(){
   const box=$('account-card');
-  if(user){box.innerHTML=`<h1 style="margin:0 0 8px;font-size:22px">Cont</h1><p class="muted"><b>${user.prenume} ${user.nume}</b><br>${user.email}</p>${installHtml()}<button class="btn light" id="logout-btn">Ieșire din cont</button>`;wireInstallButton();$('logout-btn').onclick=()=>{AvariiSecurity.clearSession('user');user=null;updateUserUi()};return}
+  if(user){box.innerHTML=`<h1 style="margin:0 0 8px;font-size:22px">Cont</h1><p class="muted"><b>${user.prenume} ${user.nume}</b><br>${user.email}</p><div id="push-settings"></div>${installHtml()}<button class="btn light" id="logout-btn">Ieșire din cont</button>`;wireInstallButton();AvariiPush.renderSettings('push-settings',user);$('logout-btn').onclick=async()=>{try{await AvariiPush.unsubscribeCurrent({silent:true})}finally{AvariiSecurity.clearSession('user');user=null;updateUserUi()}};return}
   box.innerHTML=`<h1 style="margin:0 0 8px;font-size:22px">Conectare</h1><form id="inline-login"><label>Email</label><input type="email" id="login-email" placeholder="email@exemplu.ro" required><label>Parolă</label><input type="password" id="login-parola" placeholder="parola" required><button class="btn" type="submit">Conectează-te</button></form><div id="login-msg" class="result"></div><a class="primary-cta" style="background:#eef2ff;color:#1e3a8a;box-shadow:none" href="/register.html">Creează cont nou</a>${installHtml()}`;wireInstallButton();
   $('inline-login').onsubmit=async(e)=>{e.preventDefault();const msg=$('login-msg');try{const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('login-email').value,parola:$('login-parola').value,rol:'user'})});const data=await r.json();if(!r.ok)throw new Error(data.eroare||'Login eșuat');AvariiSecurity.saveSession('user',data);user=data.user;msg.className='result ok';msg.textContent='Conectat.';updateUserUi();openTab('active')}catch(err){msg.className='result err';msg.textContent=err.message}};
 }

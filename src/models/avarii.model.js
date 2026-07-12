@@ -14,7 +14,7 @@ async function withLockedAvarie(id, mutate) {
     }
     const avarie = rows[0].data;
     const statusAnterior = avarie.status;
-    const rezultat = mutate(avarie);
+    const rezultat = mutate(avarie, { statusAnterior });
 
     let rezolvataLa = rows[0].rezolvata_la || avarie.rezolvataLa || null;
     if (avarie.status === 'rezolvata' && statusAnterior !== 'rezolvata') {
@@ -76,16 +76,26 @@ async function creeaza(avarieNoua) {
   return avarieNoua;
 }
 
-async function actualizeazaStatus(id, statusNou, mesajAdmin = '') {
-  return withLockedAvarie(id, (avarie) => {
+async function actualizeazaStatusCuMeta(id, statusNou, mesajAdmin = '') {
+  let statusAnterior = null;
+  const avarie = await withLockedAvarie(id, (item, meta) => {
+    statusAnterior = meta.statusAnterior;
     const acum = new Date().toISOString();
-    avarie.status = statusNou;
-    avarie.actualizatLa = acum;
-    avarie.statusHistory = Array.isArray(avarie.statusHistory) ? avarie.statusHistory : [];
-    avarie.statusHistory.push({ status: statusNou, mesaj: mesajAdmin || mesajImplicitStatus(statusNou), autor: 'admin', data: acum });
-    avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
-    avarie.mesaje.push({ id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, autor: 'Sistem', rol: 'sistem', mesaj: mesajAdmin || mesajImplicitStatus(statusNou), data: acum });
+    item.status = statusNou;
+    item.actualizatLa = acum;
+    item.statusHistory = Array.isArray(item.statusHistory) ? item.statusHistory : [];
+    item.statusHistory.push({ status: statusNou, mesaj: mesajAdmin || mesajImplicitStatus(statusNou), autor: 'admin', data: acum });
+    item.mesaje = Array.isArray(item.mesaje) ? item.mesaje : [];
+    item.mesaje.push({ id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, autor: 'Sistem', rol: 'sistem', mesaj: mesajAdmin || mesajImplicitStatus(statusNou), data: acum });
   });
+
+  if (!avarie) return null;
+  return { avarie, statusAnterior, statusSchimbat: statusAnterior !== statusNou };
+}
+
+async function actualizeazaStatus(id, statusNou, mesajAdmin = '') {
+  const rezultat = await actualizeazaStatusCuMeta(id, statusNou, mesajAdmin);
+  return rezultat?.avarie || null;
 }
 
 async function adaugaMesaj(id, mesajNou) {
@@ -162,4 +172,4 @@ function mesajImplicitStatus(status) {
   }[status] || 'Statusul sesizării a fost actualizat.';
 }
 
-module.exports = { citesteToate, citesteCandidateDuplicateRecente, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, stergeRezolvateExpirate, sterge };
+module.exports = { citesteToate, citesteCandidateDuplicateRecente, gasesteDupaId, creeaza, actualizeazaStatus, actualizeazaStatusCuMeta, adaugaMesaj, urmareste, feedback, stergeRezolvateExpirate, sterge };

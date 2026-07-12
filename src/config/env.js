@@ -1,3 +1,4 @@
+const { getPushConfig } = require('./push');
 const REQUIRED_RUNTIME_ENV = ['DATABASE_URL', 'AUTH_SECRET'];
 
 function validateRuntimeEnv(env = process.env) {
@@ -10,9 +11,12 @@ function validateRuntimeEnv(env = process.env) {
     );
   }
 
+  const push = getPushConfig(env);
+
   return {
     databaseUrl: String(env.DATABASE_URL).trim(),
     authSecret: String(env.AUTH_SECRET).trim(),
+    push,
   };
 }
 

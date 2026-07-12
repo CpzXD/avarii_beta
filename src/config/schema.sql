@@ -20,6 +20,20 @@ CREATE TABLE IF NOT EXISTS avarii (
 CREATE INDEX IF NOT EXISTS idx_avarii_status ON avarii (status);
 CREATE INDEX IF NOT EXISTS idx_avarii_data_raportare ON avarii (data_raportare DESC);
 
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT UNIQUE NOT NULL,
+  subscription JSONB NOT NULL,
+  user_agent TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id
+  ON push_subscriptions (user_id);
+
+
 -- Migrare sigură pentru baze create înainte de politica de retenție.
 ALTER TABLE avarii ADD COLUMN IF NOT EXISTS rezolvata_la TIMESTAMPTZ;
 

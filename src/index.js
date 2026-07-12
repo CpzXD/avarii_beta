@@ -6,12 +6,16 @@ const PORT = process.env.PORT || 3000;
 async function start() {
   // Validarea rulează înainte de importarea bazei de date, a rutelor și a
   // modulului de token-uri. Serverul nu pornește cu o configurare incompletă.
-  validateRuntimeEnv();
+  const runtimeConfig = validateRuntimeEnv();
 
   const createApp = require('./app');
   const usersModel = require('./models/users.model');
   const initDb = require('./config/init-db');
   const { curataSesizariRezolvateExpirate, pornesteCuratareaPeriodica } = require('./services/retention.service');
+
+  if (runtimeConfig.push.enabled) {
+    require('./services/push-notifications.service').configurePush();
+  }
 
   await initDb();
   await usersModel.ensureAdmin();

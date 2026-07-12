@@ -61,8 +61,46 @@ Rulează:
 npm test
 ```
 
-Testele acoperă autentificarea, hash-ul parolei, crearea unei sesizări, respingerea duplicatelor, listarea completă în ordine stabilă, configurarea obligatorie și politica de retenție de 90 de zile.
+Testele acoperă autentificarea, hash-ul parolei, crearea unei sesizări, respingerea duplicatelor, listarea completă în ordine stabilă, configurarea obligatorie, notificările push și politica de retenție de 90 de zile.
 
+
+
+## Notificări push la schimbarea statusului
+
+Aplicația poate trimite notificări Web Push proprietarului unei sesizări create din cont. Notificarea este trimisă când administratorul schimbă efectiv statusul în:
+
+- `confirmata` — „Sesizarea dumneavoastră a fost confirmată”;
+- `in_lucru` — „Sesizarea dumneavoastră este în lucru”;
+- `rezolvata` — „Sesizarea dumneavoastră a fost rezolvată”;
+- `noua` — pentru o sesizare redeschisă și revenită la starea nouă.
+
+O actualizare care păstrează același status nu trimite o notificare nouă. Sesizările anonime nu pot primi push, deoarece nu sunt asociate unui cont. Abonamentul este salvat separat pentru fiecare browser/dispozitiv în tabela `push_subscriptions`. Endpointurile expirate sunt eliminate automat când serviciul push răspunde cu `404` sau `410`.
+
+Utilizatorul activează sau dezactivează notificările din fila **Cont**. Permisiunea browserului este cerută numai după apăsarea butonului. Apăsarea notificării deschide direct pagina sesizării.
+
+Instrucțiunile scurte dedicate Render sunt și în [`PUSH_RENDER_SETUP.md`](PUSH_RENDER_SETUP.md).
+
+### Configurare VAPID
+
+Generează o singură dată perechea de chei:
+
+```bash
+npm run push:keys
+```
+
+Comanda afișează trei linii care trebuie copiate în `.env` local sau în **Render → Environment**:
+
+```env
+VAPID_PUBLIC_KEY=cheia-publica-generata
+VAPID_PRIVATE_KEY=cheia-privata-generata
+VAPID_SUBJECT=mailto:adresa-ta@example.com
+```
+
+Păstrează `VAPID_PRIVATE_KEY` secretă și stabilă între deploy-uri. Nu o salva în Git. Dacă toate cele trei variabile lipsesc, aplicația pornește normal, dar afișează notificările ca neconfigurate. Dacă este setată doar o parte dintre ele, serverul refuză pornirea pentru a evita o configurare incompletă.
+
+Render oferă HTTPS automat, necesar pentru service worker și Web Push. Pe iPhone/iPad, utilizatorul trebuie să instaleze aplicația pe ecranul principal și să deschidă versiunea instalată înainte de activarea notificărilor. Pe dispozitivele care nu acceptă Push API, aplicația afișează un mesaj și continuă să funcționeze fără notificări.
+
+Schimbarea statusului rămâne salvată chiar dacă un furnizor push este temporar indisponibil; eroarea de notificare nu anulează actualizarea sesizării.
 
 ## Retenția sesizărilor rezolvate
 
@@ -102,6 +140,9 @@ Start Command: npm start
 | `ADMIN_PASSWORD` | Pentru admin | Parola contului administrator; minimum 10 caractere |
 | `TURNSTILE_SITE_KEY` | Nu | Cheia publică Cloudflare Turnstile |
 | `TURNSTILE_SECRET_KEY` | Nu | Cheia secretă Cloudflare Turnstile |
+| `VAPID_PUBLIC_KEY` | Pentru push | Cheia publică Web Push, expusă browserului |
+| `VAPID_PRIVATE_KEY` | Pentru push | Cheia privată Web Push; trebuie păstrată secretă |
+| `VAPID_SUBJECT` | Pentru push | Contact `mailto:` sau adresă `https://` pentru VAPID |
 | `UPLOAD_DIR` | Nu | Director personalizat pentru pozele încărcate |
 | `DATA_DIR` | Nu | Director personalizat pentru datele locale auxiliare |
 
@@ -140,6 +181,7 @@ src/controllers/        logica rutelor
 src/models/             accesul la date
 src/routes/             rutele HTTP
 src/security/           parole, token-uri și validări
+src/services/           geocodare, retenție și notificări push
 test/                   testele automate
 scripts/                scripturi de migrare
 uploads/                poze încărcate în runtime
@@ -153,6 +195,7 @@ uploads/                poze încărcate în runtime
 | `npm run dev` | Pornește cu Nodemon |
 | `npm test` | Rulează testele automate |
 | `npm run db:migrate` | Importă datele JSON în PostgreSQL |
+| `npm run push:keys` | Generează perechea VAPID pentru notificări push |
 
 ## Afișarea completă pe hartă
 

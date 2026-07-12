@@ -1,13 +1,9 @@
 (()=>{
-  const VERSION='network-only-20260712-10';
+  const VERSION='network-only-20260712-11-push';
   async function registerFreshWorker(){
     if(!('serviceWorker' in navigator))return;
     const previous=localStorage.getItem('avariiServiceWorkerMode');
     if(previous!==VERSION){
-      try{
-        const registrations=await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(registration=>registration.unregister()));
-      }catch{}
       try{
         const keys=await caches.keys();
         await Promise.all(keys.map(key=>caches.delete(key)));
@@ -16,6 +12,7 @@
     try{
       const registration=await navigator.serviceWorker.register('/service-worker.js',{scope:'/',updateViaCache:'none'});
       await registration.update();
+      if(registration.waiting)registration.waiting.postMessage({type:'SKIP_WAITING'});
       localStorage.setItem('avariiServiceWorkerMode',VERSION);
       if(previous!==VERSION&&!sessionStorage.getItem('avariiFreshReload')){
         sessionStorage.setItem('avariiFreshReload','1');

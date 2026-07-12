@@ -9,6 +9,7 @@ const { saveImage } = require('../middleware/upload');
 const { cleanText, cleanMultiline, normalizeForMatch, looksLikeSpam } = require('../security/text');
 const { anonymousHash } = require('../security/tokens');
 const { verifyTurnstile } = require('../security/turnstile');
+const pushNotifications = require('../services/push-notifications.service');
 
 const categorii = new Set(['bec ars', 'stalp defect', 'stalp cazut', 'cablu expus', 'zona intunecata', 'panou defect', 'altele', 'nespecificat']);
 
@@ -169,9 +170,18 @@ async function actualizeazaStatus(req, res) {
   const statusuriValide = ['noua', 'confirmata', 'in_lucru', 'rezolvata'];
   if (!statusuriValide.includes(status)) return res.status(400).json({ eroare: 'Status invalid.' });
   if (looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Mesajul nu este valid.' });
-  const avarie = await avariiModel.actualizeazaStatus(req.params.id, status, mesaj);
-  if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
-  res.json(adminFields(avarie));
+  const rezultat = await avariiModel.actualizeazaStatusCuMeta(req.params.id, status, mesaj);
+  if (!rezultat) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+
+  if (rezultat.statusSchimbat) {
+    try {
+      await pushNotifications.notificaSchimbareStatus(rezultat.avarie, rezultat.statusAnterior);
+    } catch (error) {
+      console.warn(`Statusul a fost salvat, dar notificarea push a eșuat: ${error.message}`);
+    }
+  }
+
+  res.json(adminFields(rezultat.avarie));
 }
 
 async function listaMesaje(req, res) {

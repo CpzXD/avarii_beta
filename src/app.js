@@ -4,6 +4,7 @@ const { uploadsDir, projectRoot } = require('./config/paths');
 const { reverseGeocode } = require('./services/geocoding.service');
 const { securityHeaders, rejectSuspiciousRequest } = require('./middleware/security');
 const { createRateLimit } = require('./middleware/rate-limit');
+const { getPushConfig } = require('./config/push');
 
 function createApp() {
   const app = express();
@@ -34,7 +35,11 @@ function createApp() {
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
   app.get('/config/public', (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '' });
+    const push = getPushConfig();
+    res.json({
+      turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || '',
+      push: { enabled: push.enabled, publicKey: push.enabled ? push.publicKey : '' },
+    });
   });
 
   const geocodeLimit = createRateLimit({ windowMs: 60 * 1000, max: 120, prefix: 'geocode' });
@@ -47,9 +52,10 @@ function createApp() {
   });
 
   const apiLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 3000, prefix: 'api' });
-  app.use(['/auth', '/avarii'], (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+  app.use(['/auth', '/avarii', '/notifications'], (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   app.use('/auth', apiLimit, require('./routes/auth.routes'));
   app.use('/avarii', apiLimit, require('./routes/avarii.routes'));
+  app.use('/notifications', apiLimit, require('./routes/notifications.routes'));
 
   app.use((error, req, res, next) => {
     if (error?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ eroare: 'Poza poate avea maximum 5 MB.' });
