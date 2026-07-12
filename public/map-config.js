@@ -14,15 +14,13 @@ window.refreshAvariiMap=function(map,force=false){
   const last=map._avariiLastSize;
   if(!force&&last&&last.width===width&&last.height===height)return;
   map._avariiLastSize={width,height};
-  if(map._avariiRefreshTimer)clearTimeout(map._avariiRefreshTimer);
   if(map._avariiRefreshFrame)cancelAnimationFrame(map._avariiRefreshFrame);
-  map._avariiRefreshTimer=setTimeout(()=>{
-    map._avariiRefreshFrame=requestAnimationFrame(()=>{
-      const current=map.getContainer?.();
-      if(!current||!document.body.contains(current)||current.offsetWidth<2||current.offsetHeight<2)return;
-      map.invalidateSize({pan:false,animate:false,debounceMoveend:true});
-    });
-  },50);
+  map._avariiRefreshFrame=requestAnimationFrame(()=>{
+    map._avariiRefreshFrame=null;
+    const current=map.getContainer?.();
+    if(!current||!document.body.contains(current)||current.offsetWidth<2||current.offsetHeight<2)return;
+    map.invalidateSize({pan:false,animate:false,debounceMoveend:false});
+  });
 };
 window.createAvariiMap=function(id,options={}){
   const element=typeof id==='string'?document.getElementById(id):id;
@@ -36,63 +34,43 @@ window.createAvariiMap=function(id,options={}){
   const minZoom=options.minZoom??config.minZoom;
   const maxZoom=options.maxZoom??config.maxZoom;
   const mapOptions={
-    minZoom,maxZoom,
+    minZoom,
+    maxZoom,
     scrollWheelZoom:options.scrollWheelZoom!==false,
     wheelDebounceTime:options.wheelDebounceTime||40,
     wheelPxPerZoomLevel:options.wheelPxPerZoomLevel||80,
-    zoomAnimation:false,
+    zoomAnimation:true,
     fadeAnimation:false,
-    markerZoomAnimation:false,
-    preferCanvas:true
+    markerZoomAnimation:true,
+    preferCanvas:true,
+    inertia:true,
+    inertiaDeceleration:3000,
+    bounceAtZoomLimits:false
   };
-  if(options.limitBounds!==false){mapOptions.maxBounds=bounds;mapOptions.maxBoundsViscosity=options.maxBoundsViscosity??0.85}
-  const map=L.map(element,mapOptions).setView(center,zoom);
   if(options.limitBounds!==false){
-    map.on('dragend',()=>map.panInsideBounds(bounds,{animate:false}));
-    map.on('zoomend',()=>map.panInsideBounds(bounds,{animate:false}));
+    mapOptions.maxBounds=bounds;
+    mapOptions.maxBoundsViscosity=options.maxBoundsViscosity??0.55;
   }
+  const map=L.map(element,mapOptions).setView(center,zoom);
   element._avariiMapInstance=map;
   const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'&copy; OpenStreetMap contributors',
-    noWrap:true,minZoom,maxZoom,
-    keepBuffer:3,
-    updateWhenIdle:true,
-    updateWhenZooming:false
+    noWrap:true,
+    minZoom,
+    maxZoom,
+    keepBuffer:8,
+    updateWhenIdle:false,
+    updateWhenZooming:false,
+    updateInterval:180,
+    crossOrigin:true
   });
-  let retryTimer=null;
-  let retryUsed=false;
-  tiles.on('tileerror',()=>{
-    if(retryUsed||retryTimer)return;
-    retryUsed=true;
-    retryTimer=setTimeout(()=>{
-      retryTimer=null;
-      if(tiles._map)tiles.redraw();
-    },1200);
+  tiles.on('tileerror',event=>{
+    if(event.tile)event.tile.style.visibility='hidden';
   });
-  tiles.on('load',()=>{retryUsed=false});
   tiles.addTo(map);
   map._avariiTiles=tiles;
-  if('ResizeObserver' in window){
-    let observedWidth=0;
-    let observedHeight=0;
-    let resizeTimer=null;
-    const observer=new ResizeObserver(entries=>{
-      const rect=entries[0]?.contentRect;
-      if(!rect)return;
-      const width=Math.round(rect.width);
-      const height=Math.round(rect.height);
-      if(width<2||height<2||width===observedWidth&&height===observedHeight)return;
-      observedWidth=width;
-      observedHeight=height;
-      clearTimeout(resizeTimer);
-      resizeTimer=setTimeout(()=>window.refreshAvariiMap(map),100);
-    });
-    observer.observe(element);
-    map._avariiResizeObserver=observer;
-  }
   map.whenReady(()=>{
     window.refreshAvariiMap(map,true);
-    setTimeout(()=>window.refreshAvariiMap(map),250);
   });
   return map;
 };
