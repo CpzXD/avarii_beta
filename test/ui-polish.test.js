@@ -14,10 +14,10 @@ test('butonul de încărcare a pozei este stilizat și accesibil', () => {
   assert.match(harta, /addEventListener\('change',updatePhotoFileName\)/);
 });
 
-test('hărțile folosesc fundalul CARTO Positron', () => {
-  assert.match(mapConfig, /basemaps\.cartocdn\.com\/light_all/);
-  assert.doesNotMatch(mapConfig, /tile\.openstreetmap\.org/);
-  assert.match(mapConfig, /CARTO/);
+test('hărțile folosesc din nou tile-urile OpenStreetMap standard', () => {
+  assert.match(mapConfig, /tile\.openstreetmap\.org/);
+  assert.doesNotMatch(mapConfig, /basemaps\.cartocdn\.com/);
+  assert.doesNotMatch(mapConfig, /CARTO/);
 });
 
 test('formularul oferă toate categoriile publice acceptate de backend', () => {

@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v8-push';
+const VERSION='avarii-network-only-v9-osm-revert';
 
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
