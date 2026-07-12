@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v1';
+const VERSION='avarii-network-only-v3';
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
 });
