@@ -1,0 +1,177 @@
+[
+  {
+    "id": "00b0e592-bfd2-47b9-afb2-171f4d00dbc2",
+    "titlu": "Bec ars pe Bulevardul Tomis",
+    "categorie": "bec ars",
+    "descriere": "Stâlpul de lângă trecerea de pietoni nu luminează.",
+    "dataRaportare": "2026-07-06T08:09:08.448825+00:00",
+    "actualizatLa": "2026-07-06T08:09:08.448825+00:00",
+    "lat": 44.1807,
+    "lng": 28.6342,
+    "adresaText": "Bulevardul Tomis, lângă parc",
+    "status": "noua",
+    "pozaUrl": null,
+    "userId": "user-demo",
+    "autor": "Andrei Popescu",
+    "emailAutor": "user@demo.ro",
+    "urmaritori": 1,
+    "statusHistory": [
+      {
+        "status": "noua",
+        "mesaj": "Sesizarea a fost trimisă.",
+        "autor": "sistem",
+        "data": "2026-07-06T08:09:08.448825+00:00"
+      }
+    ],
+    "mesaje": [
+      {
+        "id": "bdbe1b55-3067-436d-a6ac-d1e6a84ff65e",
+        "autor": "Sistem",
+        "rol": "sistem",
+        "mesaj": "Sesizarea a fost primită.",
+        "data": "2026-07-06T08:09:08.448825+00:00"
+      }
+    ]
+  },
+  {
+    "id": "7515bc96-2caa-4fc5-8cef-a624c1da9906",
+    "titlu": "Cablu expus lângă stația de autobuz",
+    "categorie": "cablu expus",
+    "descriere": "Cablul este jos și pare periculos pentru pietoni.",
+    "dataRaportare": "2026-07-06T10:09:08.448825+00:00",
+    "actualizatLa": "2026-07-06T10:09:08.448825+00:00",
+    "lat": 44.1719,
+    "lng": 28.6288,
+    "adresaText": "Strada Mircea cel Bătrân, stație autobuz",
+    "status": "confirmata",
+    "pozaUrl": null,
+    "userId": null,
+    "autor": "Cetățean anonim",
+    "emailAutor": "",
+    "urmaritori": 1,
+    "statusHistory": [
+      {
+        "status": "noua",
+        "mesaj": "Sesizarea a fost trimisă.",
+        "autor": "sistem",
+        "data": "2026-07-06T10:09:08.448825+00:00"
+      },
+      {
+        "status": "confirmata",
+        "mesaj": "Status demonstrativ actualizat de administrație.",
+        "autor": "admin",
+        "data": "2026-07-06T10:09:08.448825+00:00"
+      }
+    ],
+    "mesaje": [
+      {
+        "id": "c413ea63-6b7a-41e8-b8dd-4e11f651b662",
+        "autor": "Sistem",
+        "rol": "sistem",
+        "mesaj": "Sesizarea a fost primită.",
+        "data": "2026-07-06T10:09:08.448825+00:00"
+      },
+      {
+        "id": "db7f0dd9-1004-4952-a34d-88e42100b0fc",
+        "autor": "Admin",
+        "rol": "admin",
+        "mesaj": "Am verificat sesizarea și am actualizat statusul.",
+        "data": "2026-07-06T10:09:08.448825+00:00"
+      }
+    ]
+  },
+  {
+    "id": "c6df7943-4aa7-4a84-8b7c-479e56197921",
+    "titlu": "Zonă întunecată pe alee",
+    "categorie": "bec ars",
+    "descriere": "Sunt 3 corpuri de iluminat defecte pe aceeași alee.",
+    "dataRaportare": "2026-07-06T12:09:08.448825+00:00",
+    "actualizatLa": "2026-07-06T12:09:08.448825+00:00",
+    "lat": 44.1902,
+    "lng": 28.6521,
+    "adresaText": "Zona Tăbăcărie, alee pietonală",
+    "status": "in_lucru",
+    "pozaUrl": null,
+    "userId": "user-demo",
+    "autor": "Andrei Popescu",
+    "emailAutor": "user@demo.ro",
+    "urmaritori": 1,
+    "statusHistory": [
+      {
+        "status": "noua",
+        "mesaj": "Sesizarea a fost trimisă.",
+        "autor": "sistem",
+        "data": "2026-07-06T12:09:08.448825+00:00"
+      },
+      {
+        "status": "in_lucru",
+        "mesaj": "Status demonstrativ actualizat de administrație.",
+        "autor": "admin",
+        "data": "2026-07-06T12:09:08.448825+00:00"
+      }
+    ],
+    "mesaje": [
+      {
+        "id": "7e1c268d-19fb-4b49-a9a0-fca8b09faaa9",
+        "autor": "Sistem",
+        "rol": "sistem",
+        "mesaj": "Sesizarea a fost primită.",
+        "data": "2026-07-06T12:09:08.448825+00:00"
+      },
+      {
+        "id": "52f4ae76-0995-486b-ac98-c6e4e97b0ad6",
+        "autor": "Admin",
+        "rol": "admin",
+        "mesaj": "Am verificat sesizarea și am actualizat statusul.",
+        "data": "2026-07-06T12:09:08.448825+00:00"
+      }
+    ]
+  },
+  {
+    "id": "dee22fb8-cd8a-47e1-8d5c-f46ebf1cfd3f",
+    "titlu": "Stâlp reparat în zona portului",
+    "categorie": "stalp cazut",
+    "descriere": "Intervenție finalizată, zona este sigură.",
+    "dataRaportare": "2026-07-06T14:09:08.448825+00:00",
+    "actualizatLa": "2026-07-06T14:09:08.448825+00:00",
+    "lat": 44.1603,
+    "lng": 28.6411,
+    "adresaText": "Zona Port, intrare secundară",
+    "status": "rezolvata",
+    "pozaUrl": null,
+    "userId": null,
+    "autor": "Cetățean anonim",
+    "emailAutor": "",
+    "urmaritori": 1,
+    "statusHistory": [
+      {
+        "status": "noua",
+        "mesaj": "Sesizarea a fost trimisă.",
+        "autor": "sistem",
+        "data": "2026-07-06T14:09:08.448825+00:00"
+      },
+      {
+        "status": "rezolvata",
+        "mesaj": "Status demonstrativ actualizat de administrație.",
+        "autor": "admin",
+        "data": "2026-07-06T14:09:08.448825+00:00"
+      }
+    ],
+    "mesaje": [
+      {
+        "id": "8a59cdf8-4a00-433f-91db-10799e27782c",
+        "autor": "Sistem",
+        "rol": "sistem",
+        "mesaj": "Sesizarea a fost primită.",
+        "data": "2026-07-06T14:09:08.448825+00:00"
+      },
+      {
+        "id": "087c9470-87a6-493b-914e-68790abb387b",
+        "autor": "Admin",
+        "rol": "admin",
+        "mesaj": "Am verificat sesizarea și am actualizat statusul.",
+        "data": "2026-07-06T14:09:08.448825+00:00"
+      }
+    ]
+  }
+]

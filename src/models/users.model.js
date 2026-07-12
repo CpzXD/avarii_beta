@@ -1,75 +1,64 @@
-const fs = require('fs');
-const path = require('path');
-const { dataDir, bundledDataDir } = require('../config/paths');
+const pool = require('../config/db');
 const { hashPassword, verifyPassword } = require('../security/passwords');
 
-const DB_FILE = path.join(dataDir, 'users.json');
-const SEED_FILE = path.join(bundledDataDir, 'users.json');
+async function ensureAdmin() {
+  const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminPassword = String(process.env.ADMIN_PASSWORD || '');
+  if (!adminEmail || adminPassword.length < 10) return;
 
-function initDb() {
-  const dir = path.dirname(DB_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) {
-    if (DB_FILE !== SEED_FILE && fs.existsSync(SEED_FILE)) fs.copyFileSync(SEED_FILE, DB_FILE);
-    else fs.writeFileSync(DB_FILE, '[]');
+  const existing = await gasesteDupaEmail(adminEmail);
+  const { rows: adminRows } = await pool.query(
+    `SELECT id, data FROM users WHERE data->>'rol' = 'admin' LIMIT 1`
+  );
+  const admin = adminRows[0];
+
+  if (!admin) {
+    const userNou = {
+      id: 'admin-principal',
+      prenume: 'Admin',
+      nume: 'Avarii',
+      email: adminEmail,
+      parola: hashPassword(adminPassword),
+      rol: 'admin',
+      creatLa: new Date().toISOString(),
+    };
+    await creeaza(userNou);
+    return;
+  }
+
+  const data = admin.data;
+  let changed = false;
+  if (data.email !== adminEmail) { data.email = adminEmail; changed = true; }
+  if (!verifyPassword(adminPassword, data.parola)) { data.parola = hashPassword(adminPassword); changed = true; }
+  if (changed) {
+    await pool.query('UPDATE users SET email = $1, data = $2 WHERE id = $3', [data.email, data, admin.id]);
   }
 }
 
-function citesteToti() {
-  initDb();
-  try {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8') || '[]');
-    const users = Array.isArray(data) ? data : [];
-    const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-    const adminPassword = String(process.env.ADMIN_PASSWORD || '');
-    if (adminEmail && adminPassword.length >= 10) {
-      let admin = users.find((u) => u.rol === 'admin');
-      if (!admin) {
-        admin = { id: 'admin-principal', prenume: 'Admin', nume: 'Avarii', email: adminEmail, parola: hashPassword(adminPassword), rol: 'admin', creatLa: new Date().toISOString() };
-        users.push(admin);
-        salveazaToti(users);
-      } else {
-        let changed = false;
-        if (admin.email !== adminEmail) { admin.email = adminEmail; changed = true; }
-        if (!verifyPassword(adminPassword, admin.parola)) { admin.parola = hashPassword(adminPassword); changed = true; }
-        if (changed) salveazaToti(users);
-      }
-    }
-    return users;
-  } catch {
-    return [];
-  }
-}
-
-function salveazaToti(users) {
-  initDb();
-  const temp = `${DB_FILE}.tmp`;
-  fs.writeFileSync(temp, JSON.stringify(users, null, 2));
-  fs.renameSync(temp, DB_FILE);
-}
-
-function gasesteDupaEmail(email) {
+async function gasesteDupaEmail(email) {
   const cautat = String(email || '').toLowerCase();
-  return citesteToti().find((u) => String(u.email || '').toLowerCase() === cautat);
+  const { rows } = await pool.query('SELECT data FROM users WHERE email = $1', [cautat]);
+  return rows[0]?.data || undefined;
 }
 
-function gasesteDupaId(id) {
-  return citesteToti().find((u) => u.id === id);
+async function gasesteDupaId(id) {
+  const { rows } = await pool.query('SELECT data FROM users WHERE id = $1', [id]);
+  return rows[0]?.data || undefined;
 }
 
-function creeaza(userNou) {
-  const users = citesteToti();
-  users.push(userNou);
-  salveazaToti(users);
+async function creeaza(userNou) {
+  await pool.query(
+    'INSERT INTO users (id, email, data) VALUES ($1, $2, $3)',
+    [userNou.id, String(userNou.email).toLowerCase(), userNou]
+  );
   return userNou;
 }
 
-function actualizeazaParola(id, parola) {
-  const users = citesteToti();
-  const index = users.findIndex((u) => u.id === id);
-  if (index === -1) return false;
-  users[index].parola = parola;
-  salveazaToti(users);
+async function actualizeazaParola(id, parola) {
+  const user = await gasesteDupaId(id);
+  if (!user) return false;
+  user.parola = parola;
+  await pool.query('UPDATE users SET data = $1 WHERE id = $2', [user, id]);
   return true;
 }
 
@@ -79,4 +68,4 @@ function publicUser(user) {
   return safe;
 }
 
-module.exports = { citesteToti, gasesteDupaEmail, gasesteDupaId, creeaza, actualizeazaParola, publicUser };
+module.exports = { ensureAdmin, gasesteDupaEmail, gasesteDupaId, creeaza, actualizeazaParola, publicUser };

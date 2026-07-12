@@ -80,9 +80,10 @@ function botCheck(body) {
   return true;
 }
 
-function findDuplicate({ requestId, reporterKey, titlu, categorie, lat, lng }) {
+async function findDuplicate({ requestId, reporterKey, titlu, categorie, lat, lng }) {
   const now = Date.now();
-  return avariiModel.citesteToate().find((a) => {
+  const toate = await avariiModel.citesteToate();
+  return toate.find((a) => {
     if (requestId && a.requestId === requestId) return true;
     const created = Date.parse(a.dataRaportare || 0);
     if (!created || now - created > 10 * 60 * 1000) return false;
@@ -98,15 +99,15 @@ function findDuplicate({ requestId, reporterKey, titlu, categorie, lat, lng }) {
   });
 }
 
-function listaAvarii(req, res) {
+async function listaAvarii(req, res) {
   const auth = req.auth;
-  let avarii = avariiModel.citesteToate();
+  let avarii = await avariiModel.citesteToate();
   if (auth?.rol !== 'admin') avarii = avarii.filter((a) => isVisible(a) || relations(a, auth).isOwn);
   res.json(avarii.map((a) => auth?.rol === 'admin' ? adminFields(a) : publicFields(a, auth)));
 }
 
-function detaliiAvarie(req, res) {
-  const avarie = avariiModel.gasesteDupaId(req.params.id);
+async function detaliiAvarie(req, res) {
+  const avarie = await avariiModel.gasesteDupaId(req.params.id);
   if (!avarie || (!isVisible(avarie) && req.auth.rol !== 'admin' && !relations(avarie, req.auth).isOwn)) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   res.json(detailFields(avarie, req.auth));
 }
@@ -129,7 +130,7 @@ async function creazaAvarie(req, res) {
   const auth = req.auth?.rol === 'user' ? req.auth : null;
   const reporterHash = auth ? null : anonymousHash(req.ip);
   const reporterKey = auth ? auth.id : reporterHash;
-  const duplicate = findDuplicate({ requestId, reporterKey, titlu, categorie, lat: latitude, lng: longitude });
+  const duplicate = await findDuplicate({ requestId, reporterKey, titlu, categorie, lat: latitude, lng: longitude });
   if (duplicate) return res.status(409).json({ eroare: 'Ai trimis deja o sesizare foarte asemănătoare în ultimele minute.', duplicateId: duplicate.id });
   const generic = !adresaCurata || ['locatie gps', 'gps'].includes(normalizeForMatch(adresaCurata)) || /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(adresaCurata);
   const adresaRezolvata = !generic ? adresaCurata : (latitude !== null && longitude !== null ? await reverseGeocode(latitude, longitude) : '');
@@ -165,30 +166,30 @@ async function creazaAvarie(req, res) {
     reporterHash,
     requestId: requestId || randomUUID(),
   };
-  avariiModel.creeaza(avarieNoua);
+  await avariiModel.creeaza(avarieNoua);
   res.status(201).json(auth ? detailFields(avarieNoua, auth) : { id: avarieNoua.id, mesaj: 'Sesizarea a fost trimisă și este vizibilă pe hartă.' });
 }
 
-function actualizeazaStatus(req, res) {
+async function actualizeazaStatus(req, res) {
   const status = cleanText(req.body.status, 30);
   const mesaj = cleanMultiline(req.body.mesaj, 600);
   const statusuriValide = ['noua', 'confirmata', 'in_lucru', 'rezolvata'];
   if (!statusuriValide.includes(status)) return res.status(400).json({ eroare: 'Status invalid.' });
   if (looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Mesajul nu este valid.' });
-  const avarie = avariiModel.actualizeazaStatus(req.params.id, status, mesaj);
+  const avarie = await avariiModel.actualizeazaStatus(req.params.id, status, mesaj);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   res.json(adminFields(avarie));
 }
 
-function listaMesaje(req, res) {
-  const avarie = avariiModel.gasesteDupaId(req.params.id);
+async function listaMesaje(req, res) {
+  const avarie = await avariiModel.gasesteDupaId(req.params.id);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   if (!relations(avarie, req.auth).canViewConversation) return res.status(403).json({ eroare: 'Urmărește sesizarea pentru a vedea conversația.' });
   res.json(Array.isArray(avarie.mesaje) ? avarie.mesaje : []);
 }
 
-function adaugaMesaj(req, res) {
-  const avarie = avariiModel.gasesteDupaId(req.params.id);
+async function adaugaMesaj(req, res) {
+  const avarie = await avariiModel.gasesteDupaId(req.params.id);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   const rel = relations(avarie, req.auth);
   if (!rel.canSendMessage) {
@@ -235,20 +236,20 @@ function adaugaMesaj(req, res) {
     mesaj,
     data: new Date().toISOString(),
   };
-  avariiModel.adaugaMesaj(req.params.id, mesajNou);
+  await avariiModel.adaugaMesaj(req.params.id, mesajNou);
   res.status(201).json(mesajNou);
 }
 
-function urmaresteAvarie(req, res) {
-  const avarie = avariiModel.gasesteDupaId(req.params.id);
+async function urmaresteAvarie(req, res) {
+  const avarie = await avariiModel.gasesteDupaId(req.params.id);
   if (!avarie || !isVisible(avarie)) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   if (avarie.userId === req.auth.id || String(avarie.emailAutor || '').toLowerCase() === String(req.auth.email || '').toLowerCase()) return res.status(400).json({ eroare: 'Sesizarea este deja asociată contului tău.' });
-  const actualizata = avariiModel.urmareste(req.params.id, { userId: req.auth.id, nume: `${req.auth.prenume} ${req.auth.nume}`, email: req.auth.email });
+  const actualizata = await avariiModel.urmareste(req.params.id, { userId: req.auth.id, nume: `${req.auth.prenume} ${req.auth.nume}`, email: req.auth.email });
   res.json(publicFields(actualizata, req.auth));
 }
 
-function feedbackAvarie(req, res) {
-  const avarie = avariiModel.gasesteDupaId(req.params.id);
+async function feedbackAvarie(req, res) {
+  const avarie = await avariiModel.gasesteDupaId(req.params.id);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   const rel = relations(avarie, req.auth);
   if (!rel.isOwn) return res.status(403).json({ eroare: 'Doar creatorul sesizării poate trimite feedback.' });
@@ -256,14 +257,14 @@ function feedbackAvarie(req, res) {
   const stele = Number(req.body.stele);
   const mesaj = cleanMultiline(req.body.mesaj, 500);
   if (!Number.isInteger(stele) || stele < 1 || stele > 5 || looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Alege o evaluare între 1 și 5 stele.' });
-  const actualizata = avariiModel.feedback(req.params.id, { stele, mesaj, userId: req.auth.id, nume: `${req.auth.prenume} ${req.auth.nume}`, email: req.auth.email });
+  const actualizata = await avariiModel.feedback(req.params.id, { stele, mesaj, userId: req.auth.id, nume: `${req.auth.prenume} ${req.auth.nume}`, email: req.auth.email });
   res.json(detailFields(actualizata, req.auth));
 }
 
-function stergeAvarie(req, res) {
-  const avarie = avariiModel.gasesteDupaId(req.params.id);
+async function stergeAvarie(req, res) {
+  const avarie = await avariiModel.gasesteDupaId(req.params.id);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
-  avariiModel.sterge(req.params.id);
+  await avariiModel.sterge(req.params.id);
   if (avarie.pozaUrl && String(avarie.pozaUrl).startsWith('/uploads/')) {
     const filename = path.basename(avarie.pozaUrl);
     const filePath = path.join(uploadsDir, filename);

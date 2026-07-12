@@ -1,134 +1,119 @@
-const fs = require('fs');
-const path = require('path');
-const { dataDir, bundledDataDir } = require('../config/paths');
+const pool = require('../config/db');
 
-const DB_FILE = path.join(dataDir, 'avarii.json');
-const SEED_FILE = path.join(bundledDataDir, 'avarii.json');
-
-function initDb() {
-  const dir = path.dirname(DB_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) {
-    if (DB_FILE !== SEED_FILE && fs.existsSync(SEED_FILE)) fs.copyFileSync(SEED_FILE, DB_FILE);
-    else fs.writeFileSync(DB_FILE, '[]');
-  }
-}
-
-function citesteToate() {
-  initDb();
+// Rulează un update pe o singură sesizare într-o tranzacție, cu row lock
+// (SELECT ... FOR UPDATE), ca să eviți suprascrierea unei modificări
+// concurente (ex: doi useri scriu un mesaj în același timp pe aceeași sesizare).
+async function withLockedAvarie(id, mutate) {
+  const client = await pool.connect();
   try {
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8') || '[]');
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT data FROM avarii WHERE id = $1 FOR UPDATE', [id]);
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    const avarie = rows[0].data;
+    const rezultat = mutate(avarie);
+    await client.query(
+      'UPDATE avarii SET data = $1, status = $2, actualizat_la = $3 WHERE id = $4',
+      [avarie, avarie.status, avarie.actualizatLa, id]
+    );
+    await client.query('COMMIT');
+    return rezultat === undefined ? avarie : rezultat;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
-function salveazaToate(avarii) {
-  initDb();
-  const temp = `${DB_FILE}.tmp`;
-  fs.writeFileSync(temp, JSON.stringify(avarii, null, 2));
-  fs.renameSync(temp, DB_FILE);
+async function citesteToate() {
+  const { rows } = await pool.query('SELECT data FROM avarii ORDER BY data_raportare DESC');
+  return rows.map((r) => r.data);
 }
 
-function gasesteDupaId(id) {
-  return citesteToate().find((a) => a.id === id);
+async function gasesteDupaId(id) {
+  const { rows } = await pool.query('SELECT data FROM avarii WHERE id = $1', [id]);
+  return rows[0]?.data || undefined;
 }
 
-function creeaza(avarieNoua) {
-  const avarii = citesteToate();
-  avarii.push(avarieNoua);
-  salveazaToate(avarii);
+async function creeaza(avarieNoua) {
+  await pool.query(
+    'INSERT INTO avarii (id, status, data_raportare, actualizat_la, data) VALUES ($1, $2, $3, $4, $5)',
+    [avarieNoua.id, avarieNoua.status, avarieNoua.dataRaportare, avarieNoua.actualizatLa, avarieNoua]
+  );
   return avarieNoua;
 }
 
-function actualizeazaStatus(id, statusNou, mesajAdmin = '') {
-  const avarii = citesteToate();
-  const index = avarii.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-  const acum = new Date().toISOString();
-  const avarie = avarii[index];
-  avarie.status = statusNou;
-  avarie.actualizatLa = acum;
-  if (statusNou !== 'noua') {
-    avarie.vizibilPublic = true;
-    avarie.moderare = 'aprobata';
-  }
-  avarie.statusHistory = Array.isArray(avarie.statusHistory) ? avarie.statusHistory : [];
-  avarie.statusHistory.push({ status: statusNou, mesaj: mesajAdmin || mesajImplicitStatus(statusNou), autor: 'admin', data: acum });
-  avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
-  avarie.mesaje.push({ id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, autor: 'Sistem', rol: 'sistem', mesaj: mesajAdmin || mesajImplicitStatus(statusNou), data: acum });
-  salveazaToate(avarii);
-  return avarie;
+async function actualizeazaStatus(id, statusNou, mesajAdmin = '') {
+  return withLockedAvarie(id, (avarie) => {
+    const acum = new Date().toISOString();
+    avarie.status = statusNou;
+    avarie.actualizatLa = acum;
+    if (statusNou !== 'noua') {
+      avarie.vizibilPublic = true;
+      avarie.moderare = 'aprobata';
+    }
+    avarie.statusHistory = Array.isArray(avarie.statusHistory) ? avarie.statusHistory : [];
+    avarie.statusHistory.push({ status: statusNou, mesaj: mesajAdmin || mesajImplicitStatus(statusNou), autor: 'admin', data: acum });
+    avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
+    avarie.mesaje.push({ id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, autor: 'Sistem', rol: 'sistem', mesaj: mesajAdmin || mesajImplicitStatus(statusNou), data: acum });
+  });
 }
 
-function adaugaMesaj(id, mesajNou) {
-  const avarii = citesteToate();
-  const index = avarii.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-  avarii[index].mesaje = Array.isArray(avarii[index].mesaje) ? avarii[index].mesaje : [];
-  avarii[index].mesaje.push(mesajNou);
-  avarii[index].actualizatLa = mesajNou.data;
-  salveazaToate(avarii);
-  return avarii[index];
+async function adaugaMesaj(id, mesajNou) {
+  return withLockedAvarie(id, (avarie) => {
+    avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
+    avarie.mesaje.push(mesajNou);
+    avarie.actualizatLa = mesajNou.data;
+  });
 }
 
-function urmareste(id, follower) {
-  const avarii = citesteToate();
-  const index = avarii.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-  const avarie = avarii[index];
-  avarie.followers = Array.isArray(avarie.followers) ? avarie.followers : [];
-  const previousCount = Number(avarie.urmaritori || 0);
-  const exista = avarie.followers.some((f) => f.userId === follower.userId || String(f.email || '').toLowerCase() === String(follower.email || '').toLowerCase());
-  if (!exista) {
-    avarie.followers.push({ ...follower, data: new Date().toISOString() });
-    avarie.urmaritori = Math.max(previousCount + 1, avarie.followers.length);
-  } else {
-    avarie.urmaritori = Math.max(previousCount, avarie.followers.length);
-  }
-  salveazaToate(avarii);
-  return avarie;
+async function urmareste(id, follower) {
+  return withLockedAvarie(id, (avarie) => {
+    avarie.followers = Array.isArray(avarie.followers) ? avarie.followers : [];
+    const previousCount = Number(avarie.urmaritori || 0);
+    const exista = avarie.followers.some((f) => f.userId === follower.userId || String(f.email || '').toLowerCase() === String(follower.email || '').toLowerCase());
+    if (!exista) {
+      avarie.followers.push({ ...follower, data: new Date().toISOString() });
+      avarie.urmaritori = Math.max(previousCount + 1, avarie.followers.length);
+    } else {
+      avarie.urmaritori = Math.max(previousCount, avarie.followers.length);
+    }
+  });
 }
 
-function feedback(id, feedbackNou) {
-  const avarii = citesteToate();
-  const index = avarii.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-  const acum = new Date().toISOString();
-  const avarie = avarii[index];
-  avarie.feedback = Array.isArray(avarie.feedback) ? avarie.feedback : [];
-  const existent = avarie.feedback.findIndex((f) => f.userId && f.userId === feedbackNou.userId);
-  const intrare = { ...feedbackNou, data: acum };
-  if (existent >= 0) avarie.feedback[existent] = intrare;
-  else avarie.feedback.push(intrare);
-  avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
-  const mesajIndex = avarie.mesaje.findIndex((m) => m.tip === 'feedback' && m.userId === feedbackNou.userId);
-  const steleText = `${'★'.repeat(feedbackNou.stele)}${'☆'.repeat(5 - feedbackNou.stele)}`;
-  const mesajFeedback = `Feedback final: ${steleText} (${feedbackNou.stele}/5)${feedbackNou.mesaj ? ` — ${feedbackNou.mesaj}` : ''}`;
-  const mesajConversatie = {
-    id: mesajIndex >= 0 ? avarie.mesaje[mesajIndex].id : `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
-    autor: feedbackNou.nume,
-    rol: 'user',
-    tip: 'feedback',
-    userId: feedbackNou.userId,
-    mesaj: mesajFeedback,
-    data: acum,
-  };
-  if (mesajIndex >= 0) avarie.mesaje[mesajIndex] = mesajConversatie;
-  else avarie.mesaje.push(mesajConversatie);
-  avarie.actualizatLa = acum;
-  salveazaToate(avarii);
-  return avarie;
+async function feedback(id, feedbackNou) {
+  return withLockedAvarie(id, (avarie) => {
+    const acum = new Date().toISOString();
+    avarie.feedback = Array.isArray(avarie.feedback) ? avarie.feedback : [];
+    const existent = avarie.feedback.findIndex((f) => f.userId && f.userId === feedbackNou.userId);
+    const intrare = { ...feedbackNou, data: acum };
+    if (existent >= 0) avarie.feedback[existent] = intrare;
+    else avarie.feedback.push(intrare);
+    avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
+    const mesajIndex = avarie.mesaje.findIndex((m) => m.tip === 'feedback' && m.userId === feedbackNou.userId);
+    const steleText = `${'★'.repeat(feedbackNou.stele)}${'☆'.repeat(5 - feedbackNou.stele)}`;
+    const mesajFeedback = `Feedback final: ${steleText} (${feedbackNou.stele}/5)${feedbackNou.mesaj ? ` — ${feedbackNou.mesaj}` : ''}`;
+    const mesajConversatie = {
+      id: mesajIndex >= 0 ? avarie.mesaje[mesajIndex].id : `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+      autor: feedbackNou.nume,
+      rol: 'user',
+      tip: 'feedback',
+      userId: feedbackNou.userId,
+      mesaj: mesajFeedback,
+      data: acum,
+    };
+    if (mesajIndex >= 0) avarie.mesaje[mesajIndex] = mesajConversatie;
+    else avarie.mesaje.push(mesajConversatie);
+    avarie.actualizatLa = acum;
+  });
 }
 
-function sterge(id) {
-  const avarii = citesteToate();
-  const index = avarii.findIndex((a) => a.id === id);
-  if (index === -1) return false;
-  avarii.splice(index, 1);
-  salveazaToate(avarii);
-  return true;
+async function sterge(id) {
+  const { rowCount } = await pool.query('DELETE FROM avarii WHERE id = $1', [id]);
+  return rowCount > 0;
 }
 
 function mesajImplicitStatus(status) {
@@ -140,4 +125,4 @@ function mesajImplicitStatus(status) {
   }[status] || 'Statusul sesizării a fost actualizat.';
 }
 
-module.exports = { citesteToate, salveazaToate, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, sterge };
+module.exports = { citesteToate, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, sterge };
