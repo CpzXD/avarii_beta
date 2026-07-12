@@ -3,7 +3,7 @@ services:
     name: avarii-beta
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci && npm test
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true

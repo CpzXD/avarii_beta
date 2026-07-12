@@ -1,6 +1,9 @@
 const crypto = require('crypto');
 
-const secret = process.env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
+const secret = String(process.env.AUTH_SECRET || '').trim();
+if (!secret) {
+  throw new Error('AUTH_SECRET nu este configurat. Serverul nu poate genera sau valida token-uri în siguranță.');
+}
 
 function encode(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
