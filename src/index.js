@@ -21,7 +21,7 @@ app.use(express.static(`${projectRoot}/public`, {
   extensions: ['html'],
   maxAge: 0,
   setHeaders(res, filePath) {
-    if (/service-worker\.js$|\.(?:html|js|css|json)$/i.test(filePath)) {
+    if (/service-worker\.js$|cache-bootstrap\.js$|map-config\.js$|\.(?:html|js|css|json)$/i.test(filePath)) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');

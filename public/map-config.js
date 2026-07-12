@@ -5,29 +5,68 @@ window.avariiAdminMapBounds=function(){return L.latLngBounds(window.AVARII_ADMIN
 window.isInsideAvariiArea=function(lat,lng){return window.avariiMapBounds().contains(L.latLng(Number(lat),Number(lng)))};
 window.refreshAvariiMap=function(map){
   if(!map)return;
-  [0,80,260,700,1400].forEach(delay=>setTimeout(()=>{
+  const refresh=()=>{
     const container=map.getContainer?.();
-    if(container&&document.body.contains(container)&&container.offsetWidth>0&&container.offsetHeight>0){
-      map.invalidateSize({pan:false,animate:false});
-    }
-  },delay));
+    if(!container||!document.body.contains(container)||container.offsetWidth<2||container.offsetHeight<2)return;
+    map.invalidateSize({pan:false,animate:false});
+    if(map._avariiTiles&&map._avariiTiles._map)map._avariiTiles.redraw();
+  };
+  requestAnimationFrame(()=>requestAnimationFrame(refresh));
+  [60,180,450,900].forEach(delay=>setTimeout(refresh,delay));
 };
 window.createAvariiMap=function(id,options={}){
   const element=typeof id==='string'?document.getElementById(id):id;
   if(!element)throw new Error('Containerul hărții nu există.');
+  if(element._avariiMapInstance){window.refreshAvariiMap(element._avariiMapInstance);return element._avariiMapInstance}
   const config=options.mode==='admin'?window.AVARII_ADMIN_MAP_CONFIG:window.AVARII_MAP_CONFIG;
-  const bounds=L.latLngBounds((options.bounds||config.bounds)[0],(options.bounds||config.bounds)[1]);
+  const rawBounds=options.bounds||config.bounds;
+  const bounds=L.latLngBounds(rawBounds[0],rawBounds[1]);
   const center=options.center||config.center;
   const zoom=options.zoom??config.defaultZoom;
   const minZoom=options.minZoom??config.minZoom;
   const maxZoom=options.maxZoom??config.maxZoom;
-  const mapOptions={minZoom,maxZoom,scrollWheelZoom:options.scrollWheelZoom!==false,wheelDebounceTime:options.wheelDebounceTime||40,wheelPxPerZoomLevel:options.wheelPxPerZoomLevel||80,zoomAnimation:true,fadeAnimation:true};
+  const mapOptions={
+    minZoom,maxZoom,
+    scrollWheelZoom:options.scrollWheelZoom!==false,
+    wheelDebounceTime:options.wheelDebounceTime||40,
+    wheelPxPerZoomLevel:options.wheelPxPerZoomLevel||80,
+    zoomAnimation:false,
+    fadeAnimation:false,
+    markerZoomAnimation:false,
+    preferCanvas:true
+  };
   if(options.limitBounds!==false){mapOptions.maxBounds=bounds;mapOptions.maxBoundsViscosity=options.maxBoundsViscosity??0.85}
   const map=L.map(element,mapOptions).setView(center,zoom);
-  if(options.limitBounds!==false){map.on('drag',()=>map.panInsideBounds(bounds,{animate:false}))}
-  const tiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap',noWrap:true,minZoom,maxZoom,keepBuffer:4,updateWhenIdle:false,crossOrigin:true});
+  element._avariiMapInstance=map;
+  if(options.limitBounds!==false)map.on('drag',()=>map.panInsideBounds(bounds,{animate:false}));
+  const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'&copy; OpenStreetMap contributors',
+    noWrap:true,minZoom,maxZoom,
+    keepBuffer:3,
+    updateWhenIdle:true,
+    updateWhenZooming:false
+  });
+  let retried=false;
+  tiles.on('tileerror',()=>{
+    if(retried)return;
+    retried=true;
+    setTimeout(()=>{if(tiles._map)tiles.redraw()},900);
+  });
+  tiles.on('load',()=>{retried=false});
   tiles.addTo(map);
   map._avariiTiles=tiles;
+  if('ResizeObserver' in window){
+    const observer=new ResizeObserver(()=>window.refreshAvariiMap(map));
+    observer.observe(element);
+    map._avariiResizeObserver=observer;
+  }
+  if('IntersectionObserver' in window){
+    const observer=new IntersectionObserver(entries=>{
+      if(entries.some(entry=>entry.isIntersecting))window.refreshAvariiMap(map);
+    },{threshold:.01});
+    observer.observe(element);
+    map._avariiIntersectionObserver=observer;
+  }
   map.whenReady(()=>window.refreshAvariiMap(map));
   return map;
 };
