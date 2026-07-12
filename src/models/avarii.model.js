@@ -33,6 +33,22 @@ async function citesteToate() {
   return rows.map((r) => r.data);
 }
 
+async function citesteCandidateDuplicateRecente({ requestId = null, reporterKey = null }) {
+  if (!requestId && !reporterKey) return [];
+  const { rows } = await pool.query(
+    `SELECT data
+       FROM avarii
+      WHERE data_raportare > now() - interval '10 minutes'
+        AND (
+          ($1::text IS NOT NULL AND data->>'requestId' = $1)
+          OR ($2::text IS NOT NULL AND (data->>'userId' = $2 OR data->>'reporterHash' = $2))
+        )
+      ORDER BY data_raportare DESC`,
+    [requestId || null, reporterKey || null]
+  );
+  return rows.map((r) => r.data);
+}
+
 async function gasesteDupaId(id) {
   const { rows } = await pool.query('SELECT data FROM avarii WHERE id = $1', [id]);
   return rows[0]?.data || undefined;
@@ -51,10 +67,6 @@ async function actualizeazaStatus(id, statusNou, mesajAdmin = '') {
     const acum = new Date().toISOString();
     avarie.status = statusNou;
     avarie.actualizatLa = acum;
-    if (statusNou !== 'noua') {
-      avarie.vizibilPublic = true;
-      avarie.moderare = 'aprobata';
-    }
     avarie.statusHistory = Array.isArray(avarie.statusHistory) ? avarie.statusHistory : [];
     avarie.statusHistory.push({ status: statusNou, mesaj: mesajAdmin || mesajImplicitStatus(statusNou), autor: 'admin', data: acum });
     avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
@@ -125,4 +137,4 @@ function mesajImplicitStatus(status) {
   }[status] || 'Statusul sesizării a fost actualizat.';
 }
 
-module.exports = { citesteToate, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, sterge };
+module.exports = { citesteToate, citesteCandidateDuplicateRecente, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, sterge };

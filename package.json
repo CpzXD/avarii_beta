@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "db:migrate": "node scripts/migrate-json-to-pg.js"
+    "db:migrate": "node scripts/migrate-json-to-pg.js",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^16.6.1",
