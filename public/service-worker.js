@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v4';
+const VERSION='avarii-network-only-v6-pg-polish';
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
 });
