@@ -89,3 +89,7 @@ Aceasta varianta salveaza datele in fisiere JSON si pozele in folderul local upl
 ## Persistență pe Render
 
 Pentru ca sesizările să rămână după restart/redeploy, vezi `README_PERSISTENTA_RENDER.md`.
+
+## Render Free fără disk
+
+Pentru această variantă nu configura `DATA_DIR`, `UPLOAD_DIR` sau Persistent Disk. Protecțiile anti-spam funcționează în memorie, dar contoarele și datele locale se pot reseta la restart/redeploy.

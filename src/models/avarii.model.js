@@ -9,23 +9,26 @@ function initDb() {
   const dir = path.dirname(DB_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   if (!fs.existsSync(DB_FILE)) {
-    if (DB_FILE !== SEED_FILE && fs.existsSync(SEED_FILE)) {
-      fs.copyFileSync(SEED_FILE, DB_FILE);
-    } else {
-      fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
-    }
+    if (DB_FILE !== SEED_FILE && fs.existsSync(SEED_FILE)) fs.copyFileSync(SEED_FILE, DB_FILE);
+    else fs.writeFileSync(DB_FILE, '[]');
   }
 }
 
 function citesteToate() {
   initDb();
-  const continut = fs.readFileSync(DB_FILE, 'utf-8');
-  return JSON.parse(continut || '[]');
+  try {
+    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8') || '[]');
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 function salveazaToate(avarii) {
   initDb();
-  fs.writeFileSync(DB_FILE, JSON.stringify(avarii, null, 2));
+  const temp = `${DB_FILE}.tmp`;
+  fs.writeFileSync(temp, JSON.stringify(avarii, null, 2));
+  fs.renameSync(temp, DB_FILE);
 }
 
 function gasesteDupaId(id) {
@@ -43,28 +46,18 @@ function actualizeazaStatus(id, statusNou, mesajAdmin = '') {
   const avarii = citesteToate();
   const index = avarii.findIndex((a) => a.id === id);
   if (index === -1) return null;
-
   const acum = new Date().toISOString();
   const avarie = avarii[index];
   avarie.status = statusNou;
   avarie.actualizatLa = acum;
-  avarie.statusHistory = avarie.statusHistory || [];
-  avarie.statusHistory.push({
-    status: statusNou,
-    mesaj: mesajAdmin || mesajImplicitStatus(statusNou),
-    autor: 'admin',
-    data: acum,
-  });
-
-  avarie.mesaje = avarie.mesaje || [];
-  avarie.mesaje.push({
-    id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
-    autor: 'Sistem',
-    rol: 'sistem',
-    mesaj: mesajAdmin || mesajImplicitStatus(statusNou),
-    data: acum,
-  });
-
+  if (statusNou !== 'noua') {
+    avarie.vizibilPublic = true;
+    avarie.moderare = 'aprobata';
+  }
+  avarie.statusHistory = Array.isArray(avarie.statusHistory) ? avarie.statusHistory : [];
+  avarie.statusHistory.push({ status: statusNou, mesaj: mesajAdmin || mesajImplicitStatus(statusNou), autor: 'admin', data: acum });
+  avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
+  avarie.mesaje.push({ id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, autor: 'Sistem', rol: 'sistem', mesaj: mesajAdmin || mesajImplicitStatus(statusNou), data: acum });
   salveazaToate(avarii);
   return avarie;
 }
@@ -73,7 +66,7 @@ function adaugaMesaj(id, mesajNou) {
   const avarii = citesteToate();
   const index = avarii.findIndex((a) => a.id === id);
   if (index === -1) return null;
-  avarii[index].mesaje = avarii[index].mesaje || [];
+  avarii[index].mesaje = Array.isArray(avarii[index].mesaje) ? avarii[index].mesaje : [];
   avarii[index].mesaje.push(mesajNou);
   avarii[index].actualizatLa = mesajNou.data;
   salveazaToate(avarii);
@@ -86,12 +79,14 @@ function urmareste(id, follower) {
   if (index === -1) return null;
   const avarie = avarii[index];
   avarie.followers = Array.isArray(avarie.followers) ? avarie.followers : [];
-  const key = follower.userId || follower.email || follower.deviceId || 'anonim';
-  const exista = avarie.followers.some((f) => (f.userId || f.email || f.deviceId || 'anonim') === key);
+  const previousCount = Number(avarie.urmaritori || 0);
+  const exista = avarie.followers.some((f) => f.userId === follower.userId || String(f.email || '').toLowerCase() === String(follower.email || '').toLowerCase());
   if (!exista) {
     avarie.followers.push({ ...follower, data: new Date().toISOString() });
+    avarie.urmaritori = Math.max(previousCount + 1, avarie.followers.length);
+  } else {
+    avarie.urmaritori = Math.max(previousCount, avarie.followers.length);
   }
-  avarie.urmaritori = avarie.followers.length;
   salveazaToate(avarii);
   return avarie;
 }
@@ -103,28 +98,26 @@ function feedback(id, feedbackNou) {
   const acum = new Date().toISOString();
   const avarie = avarii[index];
   avarie.feedback = Array.isArray(avarie.feedback) ? avarie.feedback : [];
-  avarie.feedback.push({ ...feedbackNou, data: acum });
+  const existent = avarie.feedback.findIndex((f) => f.userId && f.userId === feedbackNou.userId);
+  const intrare = { ...feedbackNou, data: acum };
+  if (existent >= 0) avarie.feedback[existent] = intrare;
+  else avarie.feedback.push(intrare);
+  avarie.mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
+  const mesajIndex = avarie.mesaje.findIndex((m) => m.tip === 'feedback' && m.userId === feedbackNou.userId);
+  const steleText = `${'★'.repeat(feedbackNou.stele)}${'☆'.repeat(5 - feedbackNou.stele)}`;
+  const mesajFeedback = `Feedback final: ${steleText} (${feedbackNou.stele}/5)${feedbackNou.mesaj ? ` — ${feedbackNou.mesaj}` : ''}`;
+  const mesajConversatie = {
+    id: mesajIndex >= 0 ? avarie.mesaje[mesajIndex].id : `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+    autor: feedbackNou.nume,
+    rol: 'user',
+    tip: 'feedback',
+    userId: feedbackNou.userId,
+    mesaj: mesajFeedback,
+    data: acum,
+  };
+  if (mesajIndex >= 0) avarie.mesaje[mesajIndex] = mesajConversatie;
+  else avarie.mesaje.push(mesajConversatie);
   avarie.actualizatLa = acum;
-
-  if (feedbackNou.raspuns === 'nu') {
-    avarie.status = 'confirmata';
-    avarie.statusHistory = avarie.statusHistory || [];
-    avarie.statusHistory.push({
-      status: 'confirmata',
-      mesaj: 'Utilizatorul a spus că problema nu este rezolvată. Necesită reverificare.',
-      autor: 'utilizator',
-      data: acum,
-    });
-    avarie.mesaje = avarie.mesaje || [];
-    avarie.mesaje.push({
-      id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
-      autor: 'Sistem',
-      rol: 'sistem',
-      mesaj: 'Feedback primit: problema nu este rezolvată. Sesizarea a fost redeschisă pentru verificare.',
-      data: acum,
-    });
-  }
-
   salveazaToate(avarii);
   return avarie;
 }
@@ -139,22 +132,12 @@ function sterge(id) {
 }
 
 function mesajImplicitStatus(status) {
-  const mesaje = {
+  return {
     noua: 'Sesizarea este nouă și așteaptă verificare.',
     confirmata: 'Sesizarea a fost confirmată de administrație.',
-    in_lucru: 'Sesizarea este în lucru. Echipa verifică/intervine în teren.',
+    in_lucru: 'Sesizarea este în lucru. Echipa verifică sau intervine în teren.',
     rezolvata: 'Sesizarea a fost marcată ca rezolvată.',
-  };
-  return mesaje[status] || 'Statusul sesizării a fost actualizat.';
+  }[status] || 'Statusul sesizării a fost actualizat.';
 }
 
-module.exports = {
-  citesteToate,
-  gasesteDupaId,
-  creeaza,
-  actualizeazaStatus,
-  adaugaMesaj,
-  urmareste,
-  feedback,
-  sterge,
-};
+module.exports = { citesteToate, salveazaToate, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, sterge };

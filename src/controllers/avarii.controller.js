@@ -1,51 +1,147 @@
 const { randomUUID } = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { uploadsDir } = require('../config/paths');
 const avariiModel = require('../models/avarii.model');
-const usersModel = require('../models/users.model');
 const { isInsideServiceArea } = require('../config/service-area');
 const { reverseGeocode } = require('../services/geocoding.service');
+const { saveImage } = require('../middleware/upload');
+const { cleanText, cleanMultiline, normalizeForMatch, looksLikeSpam } = require('../security/text');
+const { anonymousHash } = require('../security/tokens');
+const { verifyTurnstile } = require('../security/turnstile');
+
+const categorii = new Set(['bec ars', 'stalp defect', 'stalp cazut', 'cablu expus', 'zona intunecata', 'panou defect', 'altele', 'nespecificat']);
+
+function isVisible() {
+  return true;
+}
+
+function relations(a, auth) {
+  const isOwn = Boolean(auth && auth.rol === 'user' && (a.userId === auth.id || String(a.emailAutor || '').toLowerCase() === String(auth.email || '').toLowerCase()));
+  const isFollowing = Boolean(auth && auth.rol === 'user' && Array.isArray(a.followers) && a.followers.some((f) => f.userId === auth.id || String(f.email || '').toLowerCase() === String(auth.email || '').toLowerCase()));
+  return { isOwn, isFollowing, canCommunicate: Boolean(auth && (auth.rol === 'admin' || isOwn || isFollowing)) };
+}
+
+function publicFields(a, auth) {
+  const rel = relations(a, auth);
+  return {
+    id: a.id,
+    titlu: a.titlu,
+    categorie: a.categorie,
+    dataRaportare: a.dataRaportare,
+    actualizatLa: a.actualizatLa,
+    lat: a.lat,
+    lng: a.lng,
+    adresaText: a.adresaText,
+    status: a.status,
+    pozaUrl: a.pozaUrl,
+    urmaritori: Number(a.urmaritori || 0),
+    isOwn: rel.isOwn,
+    isFollowing: rel.isFollowing,
+  };
+}
+
+function adminFields(a) {
+  const { reporterHash, requestId, ...safe } = a;
+  return safe;
+}
+
+function detailFields(a, auth) {
+  if (auth.rol === 'admin') return { ...adminFields(a), canCommunicate: true, isOwn: false, isFollowing: false };
+  const rel = relations(a, auth);
+  const ownFeedback = Array.isArray(a.feedback) ? a.feedback.filter((f) => f.userId === auth.id) : [];
+  return {
+    ...publicFields(a, auth),
+    descriere: a.descriere || '',
+    autor: a.autor || 'Cetățean',
+    statusHistory: Array.isArray(a.statusHistory) ? a.statusHistory : [],
+    mesaje: rel.canCommunicate && Array.isArray(a.mesaje) ? a.mesaje : [],
+    feedback: ownFeedback,
+    canCommunicate: rel.canCommunicate,
+  };
+}
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const value = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+}
+
+function botCheck(body) {
+  if (cleanText(body.website, 100)) return false;
+  const started = Number(body.formStartedAt || 0);
+  if (started && Date.now() - started < 800) return false;
+  return true;
+}
+
+function findDuplicate({ requestId, reporterKey, titlu, categorie, lat, lng }) {
+  const now = Date.now();
+  return avariiModel.citesteToate().find((a) => {
+    if (requestId && a.requestId === requestId) return true;
+    const created = Date.parse(a.dataRaportare || 0);
+    if (!created || now - created > 10 * 60 * 1000) return false;
+    const sameReporter = reporterKey && (a.userId === reporterKey || a.reporterHash === reporterKey);
+    if (!sameReporter) return false;
+    const sameCategory = normalizeForMatch(a.categorie) === normalizeForMatch(categorie);
+    const sameTitle = normalizeForMatch(a.titlu) === normalizeForMatch(titlu);
+    if (!sameCategory && !sameTitle) return false;
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(Number(a.lat)) && Number.isFinite(Number(a.lng))) {
+      return distanceMeters(lat, lng, Number(a.lat), Number(a.lng)) < 60;
+    }
+    return sameTitle;
+  });
+}
 
 function listaAvarii(req, res) {
+  const auth = req.auth;
   let avarii = avariiModel.citesteToate();
-  if (req.query.userId) {
-    avarii = avarii.filter((a) => a.userId === req.query.userId);
-  }
-  res.json(avarii);
+  if (auth?.rol !== 'admin') avarii = avarii.filter((a) => isVisible(a) || relations(a, auth).isOwn);
+  res.json(avarii.map((a) => auth?.rol === 'admin' ? adminFields(a) : publicFields(a, auth)));
 }
 
 function detaliiAvarie(req, res) {
   const avarie = avariiModel.gasesteDupaId(req.params.id);
-  if (!avarie) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
-  res.json(avarie);
+  if (!avarie || (!isVisible(avarie) && req.auth.rol !== 'admin' && !relations(avarie, req.auth).isOwn)) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  res.json(detailFields(avarie, req.auth));
 }
 
 async function creazaAvarie(req, res) {
-  const { titlu, categorie, descriere, lat, lng, adresaText, userId, numeAutor, emailAutor } = req.body;
-  if (!titlu) return res.status(400).json({ eroare: 'Titlul este obligatoriu.' });
-  if ((!lat || !lng) && !adresaText) {
-    return res.status(400).json({ eroare: 'Trebuie fie locatie GPS (lat/lng), fie adresa scrisa manual.' });
+  if (!botCheck(req.body)) return res.status(400).json({ eroare: 'Cererea nu a putut fi verificată.' });
+  if (!(await verifyTurnstile(req.body.turnstileToken, req.ip))) return res.status(400).json({ eroare: 'Verificarea anti-spam nu a reușit.' });
+  const titlu = cleanText(req.body.titlu, 100);
+  const descriere = cleanMultiline(req.body.descriere, 1000);
+  const categorieRaw = normalizeForMatch(req.body.categorie || 'nespecificat');
+  const categorie = categorii.has(categorieRaw) ? categorieRaw : 'altele';
+  const adresaCurata = cleanText(req.body.adresaText, 180);
+  const latitude = req.body.lat !== undefined && req.body.lat !== '' ? Number(req.body.lat) : null;
+  const longitude = req.body.lng !== undefined && req.body.lng !== '' ? Number(req.body.lng) : null;
+  const requestId = cleanText(req.body.requestId, 80);
+  if (titlu.length < 5) return res.status(400).json({ eroare: 'Titlul trebuie să aibă minimum 5 caractere.' });
+  if (looksLikeSpam(`${titlu} ${descriere}`)) return res.status(400).json({ eroare: 'Textul sesizării pare repetitiv sau conține prea multe linkuri.' });
+  if ((latitude === null || longitude === null) && !adresaCurata) return res.status(400).json({ eroare: 'Selectează locația pe hartă sau introdu o adresă.' });
+  if ((latitude !== null || longitude !== null) && !isInsideServiceArea(latitude, longitude)) return res.status(400).json({ eroare: 'Locația este în afara zonei acoperite.' });
+  const auth = req.auth?.rol === 'user' ? req.auth : null;
+  const reporterHash = auth ? null : anonymousHash(req.ip);
+  const reporterKey = auth ? auth.id : reporterHash;
+  const duplicate = findDuplicate({ requestId, reporterKey, titlu, categorie, lat: latitude, lng: longitude });
+  if (duplicate) return res.status(409).json({ eroare: 'Ai trimis deja o sesizare foarte asemănătoare în ultimele minute.', duplicateId: duplicate.id });
+  const generic = !adresaCurata || ['locatie gps', 'gps'].includes(normalizeForMatch(adresaCurata)) || /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(adresaCurata);
+  const adresaRezolvata = !generic ? adresaCurata : (latitude !== null && longitude !== null ? await reverseGeocode(latitude, longitude) : '');
+  let pozaUrl = null;
+  try {
+    pozaUrl = saveImage(req.file);
+  } catch (error) {
+    return res.status(400).json({ eroare: error.message });
   }
-  const latitude = lat ? Number(lat) : null;
-  const longitude = lng ? Number(lng) : null;
-  if ((latitude !== null || longitude !== null) && !isInsideServiceArea(latitude, longitude)) {
-    return res.status(400).json({ eroare: 'Locația trebuie să fie în zona Constanța–Mamaia.' });
-  }
-
-  const user = userId ? usersModel.gasesteDupaId(userId) : null;
-  const pozaUrl = req.file ? `/uploads/${req.file.filename}` : null;
-  const adresaCurata = String(adresaText || '').trim();
-  const adresaGenerica = !adresaCurata
-    || ['locație gps', 'locatie gps', 'gps'].includes(adresaCurata.toLowerCase())
-    || /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(adresaCurata);
-  const adresaRezolvata = !adresaGenerica
-    ? adresaCurata
-    : (latitude !== null && longitude !== null ? await reverseGeocode(latitude, longitude) : '');
   const acum = new Date().toISOString();
-
   const avarieNoua = {
     id: randomUUID(),
     titlu,
-    categorie: categorie || 'nespecificat',
-    descriere: descriere || '',
+    categorie,
+    descriere,
     dataRaportare: acum,
     actualizatLa: acum,
     lat: latitude,
@@ -53,74 +149,85 @@ async function creazaAvarie(req, res) {
     adresaText: adresaRezolvata || null,
     status: 'noua',
     pozaUrl,
-    userId: user ? user.id : (userId || null),
-    autor: user ? `${user.prenume} ${user.nume}` : (numeAutor || 'Cetățean'),
-    emailAutor: user ? user.email : (emailAutor || ''),
-    urmaritori: user ? 1 : 0,
-    followers: user ? [{ userId: user.id, nume: `${user.prenume} ${user.nume}`, email: user.email, data: acum }] : [],
+    userId: auth?.id || null,
+    autor: auth ? `${auth.prenume} ${auth.nume}` : 'Cetățean anonim',
+    emailAutor: auth?.email || '',
+    urmaritori: auth ? 1 : 0,
+    followers: auth ? [{ userId: auth.id, nume: `${auth.prenume} ${auth.nume}`, email: auth.email, data: acum }] : [],
     feedback: [],
     statusHistory: [{ status: 'noua', mesaj: 'Sesizarea a fost trimisă.', autor: 'sistem', data: acum }],
     mesaje: [{ id: randomUUID(), autor: 'Sistem', rol: 'sistem', mesaj: 'Sesizarea a fost primită.', data: acum }],
+    vizibilPublic: true,
+    moderare: 'aprobata',
+    reporterHash,
+    requestId: requestId || randomUUID(),
   };
-
   avariiModel.creeaza(avarieNoua);
-  res.status(201).json(avarieNoua);
+  res.status(201).json(auth ? detailFields(avarieNoua, auth) : { id: avarieNoua.id, mesaj: 'Sesizarea a fost trimisă și este vizibilă pe hartă.' });
 }
 
 function actualizeazaStatus(req, res) {
-  const { status, mesaj } = req.body;
+  const status = cleanText(req.body.status, 30);
+  const mesaj = cleanMultiline(req.body.mesaj, 600);
   const statusuriValide = ['noua', 'confirmata', 'in_lucru', 'rezolvata'];
-  if (!statusuriValide.includes(status)) {
-    return res.status(400).json({ eroare: `Status invalid. Valori acceptate: ${statusuriValide.join(', ')}` });
-  }
-  const avarieActualizata = avariiModel.actualizeazaStatus(req.params.id, status, mesaj);
-  if (!avarieActualizata) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
-  res.json(avarieActualizata);
+  if (!statusuriValide.includes(status)) return res.status(400).json({ eroare: 'Status invalid.' });
+  if (looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Mesajul nu este valid.' });
+  const avarie = avariiModel.actualizeazaStatus(req.params.id, status, mesaj);
+  if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  res.json(adminFields(avarie));
 }
 
 function listaMesaje(req, res) {
   const avarie = avariiModel.gasesteDupaId(req.params.id);
-  if (!avarie) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
-  res.json(avarie.mesaje || []);
+  if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  if (!relations(avarie, req.auth).canCommunicate) return res.status(403).json({ eroare: 'Urmărește sesizarea pentru a vedea conversația.' });
+  res.json(Array.isArray(avarie.mesaje) ? avarie.mesaje : []);
 }
 
 function adaugaMesaj(req, res) {
-  const { mesaj, autor, rol } = req.body;
-  if (!mesaj) return res.status(400).json({ eroare: 'Mesajul este obligatoriu.' });
-  const mesajNou = { id: randomUUID(), autor: autor || 'Cetățean', rol: rol || 'user', mesaj, data: new Date().toISOString() };
-  const avarieActualizata = avariiModel.adaugaMesaj(req.params.id, mesajNou);
-  if (!avarieActualizata) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
+  const avarie = avariiModel.gasesteDupaId(req.params.id);
+  if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  const rel = relations(avarie, req.auth);
+  if (!rel.canCommunicate) return res.status(403).json({ eroare: 'Nu ai acces la această conversație.' });
+  const mesaj = cleanMultiline(req.body.mesaj, 1000);
+  if (mesaj.length < 1 || looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Mesajul nu este valid.' });
+  const isAdmin = req.auth.rol === 'admin';
+  const mesajNou = { id: randomUUID(), autor: isAdmin ? 'Admin' : `${req.auth.prenume} ${req.auth.nume}`, rol: isAdmin ? 'admin' : 'user', mesaj, data: new Date().toISOString() };
+  avariiModel.adaugaMesaj(req.params.id, mesajNou);
   res.status(201).json(mesajNou);
 }
 
 function urmaresteAvarie(req, res) {
-  const { userId, nume, email } = req.body;
-  if (!userId) return res.status(401).json({ eroare: 'Trebuie să fii conectat pentru a urmări o sesizare.' });
-  const user = usersModel.gasesteDupaId(userId);
-  if (!user || String(user.email).toLowerCase() !== String(email || '').toLowerCase()) {
-    return res.status(403).json({ eroare: 'Contul nu a putut fi verificat.' });
-  }
-  const follower = { userId: user.id, nume: nume || `${user.prenume} ${user.nume}`, email: user.email };
-  const avarieActualizata = avariiModel.urmareste(req.params.id, follower);
-  if (!avarieActualizata) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
-  res.json(avarieActualizata);
+  const avarie = avariiModel.gasesteDupaId(req.params.id);
+  if (!avarie || !isVisible(avarie)) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  if (avarie.userId === req.auth.id || String(avarie.emailAutor || '').toLowerCase() === String(req.auth.email || '').toLowerCase()) return res.status(400).json({ eroare: 'Sesizarea este deja asociată contului tău.' });
+  const actualizata = avariiModel.urmareste(req.params.id, { userId: req.auth.id, nume: `${req.auth.prenume} ${req.auth.nume}`, email: req.auth.email });
+  res.json(publicFields(actualizata, req.auth));
 }
 
 function feedbackAvarie(req, res) {
-  const { raspuns, mesaj, userId, nume, email } = req.body;
-  if (!['da', 'nu'].includes(raspuns)) return res.status(400).json({ eroare: 'Feedback invalid.' });
-  const feedbackNou = { raspuns, mesaj: mesaj || '', userId: userId || null, nume: nume || 'Cetățean', email: email || '' };
-  const avarieActualizata = avariiModel.feedback(req.params.id, feedbackNou);
-  if (!avarieActualizata) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
-  res.json(avarieActualizata);
+  const avarie = avariiModel.gasesteDupaId(req.params.id);
+  if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  const rel = relations(avarie, req.auth);
+  if (!rel.isOwn) return res.status(403).json({ eroare: 'Doar creatorul sesizării poate trimite feedback.' });
+  if (avarie.status !== 'rezolvata') return res.status(400).json({ eroare: 'Feedbackul poate fi trimis după rezolvare.' });
+  const stele = Number(req.body.stele);
+  const mesaj = cleanMultiline(req.body.mesaj, 500);
+  if (!Number.isInteger(stele) || stele < 1 || stele > 5 || looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Alege o evaluare între 1 și 5 stele.' });
+  const actualizata = avariiModel.feedback(req.params.id, { stele, mesaj, userId: req.auth.id, nume: `${req.auth.prenume} ${req.auth.nume}`, email: req.auth.email });
+  res.json(detailFields(actualizata, req.auth));
 }
 
 function stergeAvarie(req, res) {
   const avarie = avariiModel.gasesteDupaId(req.params.id);
-  if (!avarie) return res.status(404).json({ eroare: 'Avaria nu a fost gasita.' });
-  const succes = avariiModel.sterge(req.params.id);
-  if (!succes) return res.status(500).json({ eroare: 'Nu am putut sterge avaria.' });
-  res.json({ mesaj: 'Sesizarea a fost stearsa.', id: req.params.id });
+  if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
+  avariiModel.sterge(req.params.id);
+  if (avarie.pozaUrl && String(avarie.pozaUrl).startsWith('/uploads/')) {
+    const filename = path.basename(avarie.pozaUrl);
+    const filePath = path.join(uploadsDir, filename);
+    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+  }
+  res.json({ mesaj: 'Sesizarea a fost ștearsă.', id: req.params.id });
 }
 
 module.exports = { listaAvarii, detaliiAvarie, creazaAvarie, actualizeazaStatus, listaMesaje, adaugaMesaj, urmaresteAvarie, feedbackAvarie, stergeAvarie };

@@ -1,18 +1,16 @@
 services:
   - type: web
-    name: avarii-iluminat
+    name: avarii-beta
     env: node
-    plan: starter
+    plan: free
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      - key: DATA_DIR
-        value: /var/data/data
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
-    disk:
-      name: avarii-data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: AUTH_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

@@ -1,5 +1,5 @@
-window.AVARII_MAP_CONFIG={center:[44.215,28.635],bounds:[[44.10,28.50],[44.34,28.75]],minZoom:12,maxZoom:19,defaultZoom:13};
-window.AVARII_ADMIN_MAP_CONFIG={center:[44.23,28.64],bounds:[[44.02,28.35],[44.48,28.90]],minZoom:10,maxZoom:19,defaultZoom:12};
+window.AVARII_MAP_CONFIG={center:[44.22,28.60],bounds:[[44.06,28.43],[44.40,28.80]],minZoom:10,maxZoom:19,defaultZoom:11};
+window.AVARII_ADMIN_MAP_CONFIG={center:[44.24,28.60],bounds:[[44.00,28.30],[44.48,28.92]],minZoom:9,maxZoom:19,defaultZoom:11};
 window.avariiMapBounds=function(){return L.latLngBounds(window.AVARII_MAP_CONFIG.bounds[0],window.AVARII_MAP_CONFIG.bounds[1])};
 window.avariiAdminMapBounds=function(){return L.latLngBounds(window.AVARII_ADMIN_MAP_CONFIG.bounds[0],window.AVARII_ADMIN_MAP_CONFIG.bounds[1])};
 window.isInsideAvariiArea=function(lat,lng){return window.avariiMapBounds().contains(L.latLng(Number(lat),Number(lng)))};

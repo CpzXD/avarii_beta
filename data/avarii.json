@@ -173,48 +173,5 @@
         "data": "2026-07-06T14:09:08.448825+00:00"
       }
     ]
-  },
-  {
-    "id": "8dba9662-3477-403d-aa0c-bdfb3f270a5b",
-    "titlu": "XD",
-    "categorie": "panou defect",
-    "descriere": "XD",
-    "dataRaportare": "2026-07-11T11:32:39.803Z",
-    "actualizatLa": "2026-07-11T11:32:39.803Z",
-    "lat": 44.27698570920141,
-    "lng": 28.618526458740238,
-    "adresaText": "Strada Brizei, Năvodari",
-    "status": "noua",
-    "pozaUrl": null,
-    "userId": "user-demo",
-    "autor": "Andrei Popescu",
-    "emailAutor": "user@demo.ro",
-    "urmaritori": 1,
-    "followers": [
-      {
-        "userId": "user-demo",
-        "nume": "Andrei Popescu",
-        "email": "user@demo.ro",
-        "data": "2026-07-11T11:32:39.803Z"
-      }
-    ],
-    "feedback": [],
-    "statusHistory": [
-      {
-        "status": "noua",
-        "mesaj": "Sesizarea a fost trimisă.",
-        "autor": "sistem",
-        "data": "2026-07-11T11:32:39.803Z"
-      }
-    ],
-    "mesaje": [
-      {
-        "id": "5e52ef5c-a3cc-418f-9ebf-f1d045072c10",
-        "autor": "Sistem",
-        "rol": "sistem",
-        "mesaj": "Sesizarea a fost primită.",
-        "data": "2026-07-11T11:32:39.803Z"
-      }
-    ]
   }
 ]
