@@ -17,7 +17,19 @@ app.use(rejectSuspiciousRequest);
 app.use(express.json({ limit: '100kb', strict: true }));
 app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 app.use('/uploads', express.static(uploadsDir, { fallthrough: false, maxAge: '1d', immutable: false }));
-app.use(express.static(`${projectRoot}/public`, { extensions: ['html'], maxAge: '10m' }));
+app.use(express.static(`${projectRoot}/public`, {
+  extensions: ['html'],
+  maxAge: 0,
+  setHeaders(res, filePath) {
+    if (/service-worker\.js$|\.(?:html|js|css|json)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  }
+}));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/config/public', (req, res) => {
