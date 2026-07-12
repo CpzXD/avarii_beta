@@ -11,9 +11,16 @@ async function start() {
   const createApp = require('./app');
   const usersModel = require('./models/users.model');
   const initDb = require('./config/init-db');
+  const { curataSesizariRezolvateExpirate, pornesteCuratareaPeriodica } = require('./services/retention.service');
 
   await initDb();
   await usersModel.ensureAdmin();
+  try {
+    await curataSesizariRezolvateExpirate();
+  } catch (error) {
+    console.error(`Curățarea inițială a sesizărilor expirate a eșuat: ${error.message}`);
+  }
+  pornesteCuratareaPeriodica();
 
   const app = createApp();
   app.listen(PORT, () => {

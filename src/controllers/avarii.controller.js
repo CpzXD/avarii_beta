@@ -96,9 +96,9 @@ async function findDuplicate({ requestId, reporterKey, titlu, categorie, lat, ln
 }
 
 async function listaAvarii(req, res) {
+  const items = await avariiModel.citesteToate();
   const auth = req.auth;
-  const avarii = await avariiModel.citesteToate();
-  res.json(avarii.map((a) => auth?.rol === 'admin' ? adminFields(a) : publicFields(a, auth)));
+  return res.json(items.map((avarie) => auth?.rol === 'admin' ? adminFields(avarie) : publicFields(avarie, auth)));
 }
 
 async function detaliiAvarie(req, res) {

@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v6-pg-polish';
+const VERSION='avarii-network-only-v7-all-map';
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
 });

@@ -61,7 +61,27 @@ Rulează:
 npm test
 ```
 
-Testele minime acoperă autentificarea, hash-ul parolei, crearea unei sesizări, respingerea duplicatelor și validarea configurației obligatorii de pornire.
+Testele acoperă autentificarea, hash-ul parolei, crearea unei sesizări, respingerea duplicatelor, listarea completă în ordine stabilă, configurarea obligatorie și politica de retenție de 90 de zile.
+
+
+## Retenția sesizărilor rezolvate
+
+Harta încarcă toate sesizările păstrate în PostgreSQL, în ordine de la cea mai nouă la cea mai veche. Afișarea completă este separată de politica de retenție:
+
+- sesizările cu status `noua`, `confirmata` sau `in_lucru` sunt păstrate fără termen automat de expirare;
+- când administratorul schimbă statusul în `rezolvata`, aplicația memorează momentul în coloana `rezolvata_la`;
+- o sesizare rezolvată rămâne vizibilă timp de 90 de zile;
+- după 90 de zile de la rezolvare, înregistrarea și poza sa locală sunt șterse automat;
+- dacă sesizarea este redeschisă, termenul este anulat; la o rezolvare ulterioară începe un nou interval de 90 de zile.
+
+Curățarea rulează la pornirea serviciului și apoi o dată la 24 de ore. Interogarea șterge exclusiv rândurile care îndeplinesc ambele condiții:
+
+```sql
+status = 'rezolvata'
+AND COALESCE(rezolvata_la, actualizat_la) < now() - interval '90 days'
+```
+
+`src/config/schema.sql` adaugă automat coloana și indexul necesar și face un backfill conservator pentru sesizările care erau deja rezolvate înainte de această modificare.
 
 ## Deploy pe Render
 
@@ -134,6 +154,18 @@ uploads/                poze încărcate în runtime
 | `npm test` | Rulează testele automate |
 | `npm run db:migrate` | Importă datele JSON în PostgreSQL |
 
-## Observație despre listarea sesizărilor
+## Afișarea completă pe hartă
 
-Ruta care listează sesizările folosește în continuare citirea întregii colecții. Aceasta este o problemă separată de paginare și nu face parte din optimizarea verificării duplicatelor, care interoghează doar candidații din ultimele 10 minute.
+`GET /avarii` întoarce toate sesizările păstrate în PostgreSQL. Nu există parametri `page`/`limit` și nici controale **Anterior/Următor** în interfețe.
+
+Interogarea folosește:
+
+```sql
+SELECT data
+FROM avarii
+ORDER BY data_raportare DESC, id DESC;
+```
+
+Ordinea este globală și deterministă: cele mai noi sesizări apar primele, iar `id DESC` separă stabil înregistrările care au aceeași secundă de raportare. `harta.html` afișează toate punctele primite pe o singură hartă, fără listă paginată dedesubt. Detaliile se deschid din marker, iar fila „Ale mele” rămâne separată. Panoul `admin.html` păstrează lista de administrare și harta, dar fără paginare. Filtrele și căutarea se aplică întregului set încărcat.
+
+Sesizările active sunt păstrate fără expirare. Numai cele rezolvate sunt eliminate automat după 90 de zile, conform secțiunii despre retenție.

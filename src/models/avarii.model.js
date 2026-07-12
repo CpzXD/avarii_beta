@@ -7,16 +7,28 @@ async function withLockedAvarie(id, mutate) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query('SELECT data FROM avarii WHERE id = $1 FOR UPDATE', [id]);
+    const { rows } = await client.query('SELECT data, rezolvata_la FROM avarii WHERE id = $1 FOR UPDATE', [id]);
     if (!rows[0]) {
       await client.query('ROLLBACK');
       return null;
     }
     const avarie = rows[0].data;
+    const statusAnterior = avarie.status;
     const rezultat = mutate(avarie);
+
+    let rezolvataLa = rows[0].rezolvata_la || avarie.rezolvataLa || null;
+    if (avarie.status === 'rezolvata' && statusAnterior !== 'rezolvata') {
+      rezolvataLa = avarie.actualizatLa || new Date().toISOString();
+    } else if (avarie.status !== 'rezolvata') {
+      rezolvataLa = null;
+    }
+
+    if (rezolvataLa) avarie.rezolvataLa = new Date(rezolvataLa).toISOString();
+    else delete avarie.rezolvataLa;
+
     await client.query(
-      'UPDATE avarii SET data = $1, status = $2, actualizat_la = $3 WHERE id = $4',
-      [avarie, avarie.status, avarie.actualizatLa, id]
+      'UPDATE avarii SET data = $1, status = $2, actualizat_la = $3, rezolvata_la = $4 WHERE id = $5',
+      [avarie, avarie.status, avarie.actualizatLa, rezolvataLa, id]
     );
     await client.query('COMMIT');
     return rezultat === undefined ? avarie : rezultat;
@@ -29,8 +41,10 @@ async function withLockedAvarie(id, mutate) {
 }
 
 async function citesteToate() {
-  const { rows } = await pool.query('SELECT data FROM avarii ORDER BY data_raportare DESC');
-  return rows.map((r) => r.data);
+  const { rows } = await pool.query(
+    'SELECT data FROM avarii ORDER BY data_raportare DESC, id DESC'
+  );
+  return rows.map((row) => row.data);
 }
 
 async function citesteCandidateDuplicateRecente({ requestId = null, reporterKey = null }) {
@@ -123,6 +137,17 @@ async function feedback(id, feedbackNou) {
   });
 }
 
+
+async function stergeRezolvateExpirate() {
+  const { rows } = await pool.query(
+    `DELETE FROM avarii
+      WHERE status = 'rezolvata'
+        AND COALESCE(rezolvata_la, actualizat_la) < now() - interval '90 days'
+      RETURNING data`
+  );
+  return rows.map((row) => row.data);
+}
+
 async function sterge(id) {
   const { rowCount } = await pool.query('DELETE FROM avarii WHERE id = $1', [id]);
   return rowCount > 0;
@@ -137,4 +162,4 @@ function mesajImplicitStatus(status) {
   }[status] || 'Statusul sesizării a fost actualizat.';
 }
 
-module.exports = { citesteToate, citesteCandidateDuplicateRecente, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, sterge };
+module.exports = { citesteToate, citesteCandidateDuplicateRecente, gasesteDupaId, creeaza, actualizeazaStatus, adaugaMesaj, urmareste, feedback, stergeRezolvateExpirate, sterge };

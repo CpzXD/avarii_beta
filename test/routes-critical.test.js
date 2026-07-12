@@ -37,7 +37,10 @@ const fakeUsersModel = {
 const fakeAvariiModel = {
   async citesteToate() {
     citesteToateCalls += 1;
-    return [...avarii];
+    return [...avarii].sort((a, b) => {
+      const byDate = String(b.dataRaportare || '').localeCompare(String(a.dataRaportare || ''));
+      return byDate || String(b.id).localeCompare(String(a.id));
+    });
   },
   async citesteCandidateDuplicateRecente() {
     duplicateCandidateCalls += 1;
@@ -136,6 +139,24 @@ test('auth: înregistrarea hashuiește parola, iar loginul validează parola', a
     rol: 'user',
   });
   assert.equal(rejected.response.status, 401);
+});
+
+test('listare sesizări: întoarce toate sesizările în ordine stabilă, fără paginare', async () => {
+  avarii.push(
+    { id: 'a-1', titlu: 'Prima', categorie: 'bec ars', dataRaportare: '2026-01-03T00:00:00.000Z', actualizatLa: '2026-01-03T00:00:00.000Z', status: 'noua' },
+    { id: 'a-2', titlu: 'A doua', categorie: 'bec ars', dataRaportare: '2026-01-02T00:00:00.000Z', actualizatLa: '2026-01-02T00:00:00.000Z', status: 'noua' },
+    { id: 'a-3', titlu: 'A treia', categorie: 'bec ars', dataRaportare: '2026-01-01T00:00:00.000Z', actualizatLa: '2026-01-01T00:00:00.000Z', status: 'noua' },
+  );
+
+  const response = await fetch(`${baseUrl}/avarii`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(citesteToateCalls, 1);
+  assert.deepEqual(body.map((item) => item.id), ['a-1', 'a-2', 'a-3']);
+  assert.equal(response.headers.get('x-page'), null);
+  assert.equal(response.headers.get('x-total-pages'), null);
+  assert.equal(response.headers.get('link'), null);
 });
 
 test('creare sesizare: folosește doar candidații recenți și respinge duplicatul', async () => {
