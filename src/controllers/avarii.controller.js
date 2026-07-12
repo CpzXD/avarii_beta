@@ -10,8 +10,7 @@ const { cleanText, cleanMultiline, normalizeForMatch, looksLikeSpam } = require(
 const { anonymousHash } = require('../security/tokens');
 const { verifyTurnstile } = require('../security/turnstile');
 const pushNotifications = require('../services/push-notifications.service');
-
-const categorii = new Set(['bec ars', 'stalp defect', 'stalp cazut', 'cablu expus', 'zona intunecata', 'panou defect', 'altele', 'nespecificat']);
+const { ACCEPTED_REPORT_CATEGORY_VALUES } = require('../config/report-categories');
 
 function relations(a, auth) {
   const isOwn = Boolean(auth && auth.rol === 'user' && (a.userId === auth.id || String(a.emailAutor || '').toLowerCase() === String(auth.email || '').toLowerCase()));
@@ -114,7 +113,7 @@ async function creazaAvarie(req, res) {
   const titlu = cleanText(req.body.titlu, 100);
   const descriere = cleanMultiline(req.body.descriere, 1000);
   const categorieRaw = normalizeForMatch(req.body.categorie || 'nespecificat');
-  const categorie = categorii.has(categorieRaw) ? categorieRaw : 'altele';
+  const categorie = ACCEPTED_REPORT_CATEGORY_VALUES.includes(categorieRaw) ? categorieRaw : 'altele';
   const adresaCurata = cleanText(req.body.adresaText, 180);
   const latitude = req.body.lat !== undefined && req.body.lat !== '' ? Number(req.body.lat) : null;
   const longitude = req.body.lng !== undefined && req.body.lng !== '' ? Number(req.body.lng) : null;

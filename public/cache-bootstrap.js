@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='network-only-20260712-12-report-layout';
+  const VERSION='network-only-20260713-13-ui-polish';
   async function registerFreshWorker(){
     if(!('serviceWorker' in navigator))return;
     const previous=localStorage.getItem('avariiServiceWorkerMode');
