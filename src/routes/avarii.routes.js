@@ -25,7 +25,13 @@ const reportIpLimit = createRateLimit({
   prefix: 'report-ip',
   message: 'S-au trimis prea multe sesizări de pe această rețea într-un interval scurt.',
 });
-const messageLimit = createRateLimit({ windowMs: 5 * 60 * 1000, max: 10, prefix: 'messages', key: (req) => req.auth?.id || req.ip, message: 'Ai trimis prea multe mesaje. Așteaptă câteva minute.' });
+const messageLimit = createRateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: (req) => req.auth?.rol === 'admin' ? 60 : 5,
+  prefix: 'messages',
+  key: (req) => `${req.auth?.id || req.ip}:${req.params.id || 'general'}`,
+  message: 'Ai trimis prea multe mesaje în această conversație. Așteaptă câteva minute.',
+});
 const followLimit = createRateLimit({ windowMs: 60 * 60 * 1000, max: 30, prefix: 'follow', key: (req) => req.auth?.id || req.ip });
 const feedbackLimit = createRateLimit({ windowMs: 60 * 60 * 1000, max: 8, prefix: 'feedback', key: (req) => req.auth?.id || req.ip });
 const adminWriteLimit = createRateLimit({ windowMs: 60 * 1000, max: 60, prefix: 'admin-write', key: (req) => req.auth?.id || req.ip });

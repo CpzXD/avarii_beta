@@ -1,4 +1,4 @@
-const CACHE_NAME='avarii-ui-hotfix-refresh-v4';
+const CACHE_NAME='avarii-ui-chat-antispam-v5';
 const APP_SHELL=['/','/harta.html','/login.html','/register.html','/sesizare-detalii.html','/sesizare.html','/sesizarile-mele.html','/map-config.js','/location-utils.js','/vendor/leaflet/leaflet.css','/vendor/leaflet/leaflet.js','/vendor/leaflet/images/marker-icon.png','/vendor/leaflet/images/marker-icon-2x.png','/vendor/leaflet/images/marker-shadow.png','/security-client.js','/manifest-cetatean.json','/branding/branding.css','/branding/branding.js','/branding/luxten-logo.png','/branding/luxten-logo-splash.png','/branding/luxten-symbol.png','/branding/luxten-192.png','/branding/luxten-512.png','/branding/luxten-apple-180.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim()))});

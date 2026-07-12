@@ -19,7 +19,9 @@ function isVisible() {
 function relations(a, auth) {
   const isOwn = Boolean(auth && auth.rol === 'user' && (a.userId === auth.id || String(a.emailAutor || '').toLowerCase() === String(auth.email || '').toLowerCase()));
   const isFollowing = Boolean(auth && auth.rol === 'user' && Array.isArray(a.followers) && a.followers.some((f) => f.userId === auth.id || String(f.email || '').toLowerCase() === String(auth.email || '').toLowerCase()));
-  return { isOwn, isFollowing, canCommunicate: Boolean(auth && (auth.rol === 'admin' || isOwn || isFollowing)) };
+  const canViewConversation = Boolean(auth && (auth.rol === 'admin' || isOwn || isFollowing));
+  const canSendMessage = Boolean(auth && (auth.rol === 'admin' || isOwn));
+  return { isOwn, isFollowing, canViewConversation, canSendMessage, canCommunicate: canViewConversation };
 }
 
 function publicFields(a, auth) {
@@ -47,7 +49,7 @@ function adminFields(a) {
 }
 
 function detailFields(a, auth) {
-  if (auth.rol === 'admin') return { ...adminFields(a), canCommunicate: true, isOwn: false, isFollowing: false };
+  if (auth.rol === 'admin') return { ...adminFields(a), canCommunicate: true, canSendMessage: true, isOwn: false, isFollowing: false };
   const rel = relations(a, auth);
   const ownFeedback = Array.isArray(a.feedback) ? a.feedback.filter((f) => f.userId === auth.id) : [];
   return {
@@ -55,9 +57,10 @@ function detailFields(a, auth) {
     descriere: a.descriere || '',
     autor: a.autor || 'Cetățean',
     statusHistory: Array.isArray(a.statusHistory) ? a.statusHistory : [],
-    mesaje: rel.canCommunicate && Array.isArray(a.mesaje) ? a.mesaje : [],
+    mesaje: rel.canViewConversation && Array.isArray(a.mesaje) ? a.mesaje : [],
     feedback: ownFeedback,
-    canCommunicate: rel.canCommunicate,
+    canCommunicate: rel.canViewConversation,
+    canSendMessage: rel.canSendMessage,
   };
 }
 
@@ -180,7 +183,7 @@ function actualizeazaStatus(req, res) {
 function listaMesaje(req, res) {
   const avarie = avariiModel.gasesteDupaId(req.params.id);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
-  if (!relations(avarie, req.auth).canCommunicate) return res.status(403).json({ eroare: 'Urmărește sesizarea pentru a vedea conversația.' });
+  if (!relations(avarie, req.auth).canViewConversation) return res.status(403).json({ eroare: 'Urmărește sesizarea pentru a vedea conversația.' });
   res.json(Array.isArray(avarie.mesaje) ? avarie.mesaje : []);
 }
 
@@ -188,11 +191,50 @@ function adaugaMesaj(req, res) {
   const avarie = avariiModel.gasesteDupaId(req.params.id);
   if (!avarie) return res.status(404).json({ eroare: 'Sesizarea nu a fost găsită.' });
   const rel = relations(avarie, req.auth);
-  if (!rel.canCommunicate) return res.status(403).json({ eroare: 'Nu ai acces la această conversație.' });
-  const mesaj = cleanMultiline(req.body.mesaj, 1000);
-  if (mesaj.length < 1 || looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Mesajul nu este valid.' });
+  if (!rel.canSendMessage) {
+    return res.status(403).json({ eroare: 'Doar creatorul sesizării și administratorul pot scrie în conversație.' });
+  }
+  const mesaj = cleanMultiline(req.body.mesaj, 600);
+  if (mesaj.length < 2 || looksLikeSpam(mesaj)) return res.status(400).json({ eroare: 'Mesajul trebuie să aibă între 2 și 600 de caractere și să nu fie repetitiv.' });
   const isAdmin = req.auth.rol === 'admin';
-  const mesajNou = { id: randomUUID(), autor: isAdmin ? 'Admin' : `${req.auth.prenume} ${req.auth.nume}`, rol: isAdmin ? 'admin' : 'user', mesaj, data: new Date().toISOString() };
+  const mesaje = Array.isArray(avarie.mesaje) ? avarie.mesaje : [];
+  if (!isAdmin) {
+    const now = Date.now();
+    const userName = `${req.auth.prenume} ${req.auth.nume}`.trim();
+    const isOwnMessage = (entry) => entry && entry.rol === 'user' && (entry.userId === req.auth.id || (!entry.userId && entry.autor === userName));
+    const ownMessages = mesaje.filter(isOwnMessage);
+    const lastOwn = ownMessages[ownMessages.length - 1];
+    if (lastOwn) {
+      const lastAt = Date.parse(lastOwn.data || 0);
+      if (lastAt && now - lastAt < 15 * 1000) {
+        const wait = Math.max(1, Math.ceil((15 * 1000 - (now - lastAt)) / 1000));
+        return res.status(429).json({ eroare: `Așteaptă ${wait} secunde înainte de următorul mesaj.` });
+      }
+    }
+    const normalized = normalizeForMatch(mesaj);
+    const duplicate = ownMessages.some((entry) => {
+      const created = Date.parse(entry.data || 0);
+      return created && now - created <= 10 * 60 * 1000 && normalizeForMatch(entry.mesaj) === normalized;
+    });
+    if (duplicate) return res.status(409).json({ eroare: 'Acest mesaj a fost deja trimis recent.' });
+    let consecutive = 0;
+    for (let index = mesaje.length - 1; index >= 0; index -= 1) {
+      const entry = mesaje[index];
+      if (entry?.rol === 'admin' || entry?.rol === 'sistem') break;
+      if (isOwnMessage(entry)) consecutive += 1;
+    }
+    if (consecutive >= 3) {
+      return res.status(429).json({ eroare: 'Ai trimis deja 3 mesaje consecutive. Așteaptă un răspuns din partea administrației.' });
+    }
+  }
+  const mesajNou = {
+    id: randomUUID(),
+    autor: isAdmin ? 'Admin' : `${req.auth.prenume} ${req.auth.nume}`,
+    rol: isAdmin ? 'admin' : 'user',
+    userId: isAdmin ? null : req.auth.id,
+    mesaj,
+    data: new Date().toISOString(),
+  };
   avariiModel.adaugaMesaj(req.params.id, mesajNou);
   res.status(201).json(mesajNou);
 }
