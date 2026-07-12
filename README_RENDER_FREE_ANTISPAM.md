@@ -39,3 +39,7 @@ Pentru Cloudflare Turnstile:
 
 - `TURNSTILE_SITE_KEY`
 - `TURNSTILE_SECRET_KEY`
+
+
+## Hotfix hartă și interfață
+Leaflet este livrat local din proiect, astfel încât hărțile și navigația nu depind de CDN-ul extern unpkg. După deploy, închide complet aplicația instalată și redeschide linkul în browser pentru actualizarea service worker-ului.
