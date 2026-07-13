@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v16-darkmode-both';
+const VERSION='avarii-network-only-v17-account-theme';
 
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());

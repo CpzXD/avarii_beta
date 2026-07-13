@@ -18,6 +18,18 @@ test('clientul și panoul admin au switch pentru modul întunecat', () => {
   assert.match(admin, />Mod întunecat</);
 });
 
+
+test('switchul clientului este în secțiunea Cont, nu în bara de sus', () => {
+  const client = read('harta.html');
+  const header = client.match(/<header class="header">[\s\S]*?<\/header>/)?.[0] || '';
+  const account = client.match(/<section class="page" id="page-account">[\s\S]*?<\/section>/)?.[0] || '';
+
+  assert.doesNotMatch(header, /data-theme-toggle/);
+  assert.match(account, /account-theme-setting/);
+  assert.match(account, /data-theme-toggle/);
+  assert.match(account, />Aspectul aplicației</);
+});
+
 test('tema este memorată, respectă preferința sistemului și actualizează status bar-ul', () => {
   const script = read('theme.js');
 

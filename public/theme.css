@@ -9,6 +9,7 @@ html[data-theme="dark"]{
   --theme-switch-track-active:#3b82f6;
 }
 .theme-switch{display:inline-flex;align-items:center;gap:9px;min-height:40px;cursor:pointer;user-select:none;font-size:13px;font-weight:850;white-space:nowrap}.theme-switch__label{line-height:1.1}.theme-switch__input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.theme-switch__track{position:relative;display:inline-block;width:46px;height:26px;flex:0 0 46px;border-radius:999px;background:var(--theme-switch-track);box-shadow:inset 0 0 0 1px rgba(15,23,42,.12);transition:background .18s ease}.theme-switch__thumb{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--theme-switch-thumb);box-shadow:0 2px 7px rgba(15,23,42,.28);transition:transform .18s ease}.theme-switch__input:checked+.theme-switch__track{background:var(--theme-switch-track-active)}.theme-switch__input:checked+.theme-switch__track .theme-switch__thumb{transform:translateX(20px)}.theme-switch__input:focus-visible+.theme-switch__track{outline:3px solid rgba(37,99,235,.32);outline-offset:3px}.theme-switch__state{font-size:12px;opacity:.78}
+.client-app .account-theme-setting{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:18px;padding-top:18px;border-top:1px solid #e5e7eb}.client-app .account-theme-copy{display:flex;flex-direction:column;gap:4px;min-width:0}.client-app .account-theme-copy b{font-size:15px}.client-app .account-theme-copy span{font-size:13px;line-height:1.4;color:#64748b}.client-app .account-theme-setting .theme-switch{flex:0 0 auto}
 
 /* Aplicația cetățeanului */
 html[data-theme="dark"] body.client-app{background:#0b1220;color:#e5edf7}
@@ -18,7 +19,7 @@ html[data-theme="dark"] .client-app .user-chip{background:#1e293b;color:#cbd5e1}
 html[data-theme="dark"] .client-app .card,
 html[data-theme="dark"] .client-app .item,
 html[data-theme="dark"] .client-app .empty{background:#111c2e;border-color:#26364b;color:#e5edf7;box-shadow:0 10px 30px rgba(0,0,0,.22)}
-html[data-theme="dark"] .client-app .hero{background:linear-gradient(135deg,#1e73be 0%,#60a5fa 50%,#ff7a16 100%);border-color:transparent;color:#fff}
+html[data-theme="dark"] .client-app .hero{background:linear-gradient(135deg,#0c5ca8 0%,#2f80c7 52%,#f47a20 100%);border-color:transparent;color:#fff}
 html[data-theme="dark"] .client-app .stat,
 html[data-theme="dark"] .client-app .map-location,
 html[data-theme="dark"] .client-app .file-upload-control{background:#162235;border-color:#2b3c53;color:#e5edf7}
@@ -32,6 +33,8 @@ html[data-theme="dark"] .client-app .report-submit-note,
 html[data-theme="dark"] .client-app .file-upload-name,
 html[data-theme="dark"] .client-app .file-upload-help,
 html[data-theme="dark"] .client-app .install-note{color:#9fb0c4}
+html[data-theme="dark"] .client-app .account-theme-setting{border-color:#26364b}
+html[data-theme="dark"] .client-app .account-theme-copy span{color:#9fb0c4}
 html[data-theme="dark"] .client-app .file-upload-name.has-file{color:#f8fafc}
 html[data-theme="dark"] .client-app .map-title,
 html[data-theme="dark"] .client-app .map-location{border-color:#26364b}
@@ -108,7 +111,7 @@ html[data-theme="dark"] .detail-app .leaflet-popup-content-wrapper,
 html[data-theme="dark"] .detail-app .leaflet-popup-tip{background:#111c2e;color:#e5edf7}
 
 @media(min-width:900px){html[data-theme="dark"] .client-app .bottom-tabs{background:#0f172a;border-color:#26364b}}
-@media(max-width:620px){.client-app .theme-switch__label,.client-app .theme-switch__state{display:none}.client-app .theme-switch{gap:0}.client-app .header-actions{gap:8px}}
+@media(max-width:620px){.client-app .header .theme-switch__label,.client-app .header .theme-switch__state{display:none}.client-app .header .theme-switch{gap:0}.client-app .header-actions{gap:8px}.client-app .account-theme-setting{align-items:flex-start;flex-direction:column;gap:12px}.client-app .account-theme-setting .theme-switch{width:100%;justify-content:space-between}}
 @media(prefers-reduced-motion:reduce){.theme-switch__track,.theme-switch__thumb{transition:none}}
 html[data-theme="dark"] .client-app #account-card .primary-cta[style]{background:#1e3a5f!important;color:#dbeafe!important}
 html[data-theme="dark"] .admin-app .mobile-blocker{background:#0b1220;color:#e5edf7}
