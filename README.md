@@ -1,222 +1,364 @@
 # Avarii Iluminat
 
-Aplicație web Node.js/Express pentru raportarea și administrarea sesizărilor de iluminat public. Datele sunt stocate în PostgreSQL, iar interfața este servită din directorul `public/`.
+**Avarii Iluminat** este o aplicație web prin care cetățenii pot raporta rapid problemele de iluminat public, direct de pe telefon sau calculator.
 
-## Cerințe
+În locul unui mesaj vag de tipul „nu merge lumina pe strada X”, aplicația trimite informațiile de care are nevoie echipa de intervenție: poziția exactă pe hartă, categoria problemei, o descriere și, opțional, o fotografie.
+
+După trimitere, utilizatorul poate urmări sesizarea până la rezolvare și poate primi notificări atunci când aceasta este confirmată, preluată în lucru sau închisă.
+
+> Aplicația este în prezent un proiect demonstrativ. Poate fi adaptată la identitatea vizuală, infrastructura și procedurile unei companii sau instituții.
+
+## Ce poate face aplicația
+
+### Pentru cetățeni
+
+Un utilizator poate:
+
+- să își creeze un cont și să se autentifice;
+- să raporteze o problemă folosind GPS-ul sau alegând punctul direct pe hartă;
+- să adauge titlu, categorie, descriere și fotografie;
+- să vadă sesizările active pe hartă;
+- să își urmărească propriile sesizări din secțiunea **Ale mele**;
+- să urmărească și sesizările altor utilizatori;
+- să discute cu administratorul în pagina sesizării;
+- să primească notificări când statusul se schimbă;
+- să lase o evaluare după rezolvare;
+- să instaleze aplicația pe telefon ca PWA;
+- să aleagă între tema luminoasă și cea întunecată.
+
+### Pentru administratori
+
+Panoul de administrare oferă:
+
+- o hartă cu toate sesizările;
+- o listă cu informațiile importante despre fiecare caz;
+- căutare și filtre după status;
+- schimbarea statusului unei sesizări;
+- mesaje publice pentru cetățean;
+- conversație directă cu autorul;
+- ștergerea unei sesizări atunci când este necesar;
+- butonul **Du-mă acolo**, care deschide traseul către locația raportată;
+- temă luminoasă și întunecată.
+
+## Cum circulă o sesizare
+
+Fluxul normal este:
+
+```text
+Nouă → Confirmată → În lucru → Rezolvată
+```
+
+La fiecare schimbare, administratorul poate adăuga un mesaj public. Utilizatorul primește notificare dacă și-a activat notificările din secțiunea **Cont**.
+
+Sesizările active nu sunt șterse automat. Cele rezolvate sunt păstrate timp de 90 de zile, după care aplicația le elimină împreună cu fotografia locală asociată. Dacă o sesizare este redeschisă, termenul de ștergere se anulează.
+
+## Categorii disponibile
+
+- Bec ars
+- Stâlp defect
+- Stâlp căzut
+- Cablu expus / căzut
+- Zonă întunecată
+- Panou de control defect
+- Altele
+
+Lista este definită într-un singur loc, astfel încât formularul și backendul să accepte întotdeauna aceleași categorii.
+
+## Protecții incluse
+
+Aplicația are deja câteva măsuri pentru a limita spamul și folosirea abuzivă:
+
+- detectează raportările foarte asemănătoare trimise în ultimele 10 minute;
+- limitează încercările repetate de autentificare;
+- limitează numărul de conturi și sesizări create într-un interval scurt;
+- limitează mesajele și operațiile administrative;
+- acceptă o singură fotografie per sesizare, de maximum 5 MB;
+- acceptă doar JPG, PNG și WebP și verifică tipul real al fișierului;
+- poate folosi Cloudflare Turnstile, dacă sunt configurate cheile necesare.
+
+Pentru un proiect mai mare, cu mai multe instanțe ale serverului, limitările ar trebui mutate într-un serviciu comun precum Redis.
+
+## Tehnologii folosite
+
+Aplicația este construită simplu, fără un framework mare pe partea de interfață:
+
+- **Node.js** și **Express** pentru server;
+- **PostgreSQL** pentru baza de date;
+- **HTML, CSS și JavaScript** pentru interfață;
+- **Leaflet** și **OpenStreetMap** pentru hartă;
+- **Web Push și VAPID** pentru notificări;
+- **Multer** pentru încărcarea fotografiilor;
+- **node:test** pentru testele automate.
+
+## Pornire locală
+
+Ai nevoie de:
 
 - Node.js 18 sau mai nou;
 - npm;
-- o bază de date PostgreSQL;
-- variabilele de mediu `DATABASE_URL` și `AUTH_SECRET`.
+- o bază de date PostgreSQL.
 
-Serverul refuză pornirea dacă `DATABASE_URL` sau `AUTH_SECRET` lipsesc.
+### 1. Instalează dependențele
 
-## Instalare locală
-
-1. Instalează dependențele:
+Din folderul proiectului:
 
 ```bash
 npm ci
 ```
 
-2. Creează configurația locală:
+`npm ci` instalează exact versiunile salvate în `package-lock.json`. Când adaugi sau actualizezi un pachet în timpul dezvoltării, folosește `npm install`.
+
+### 2. Creează fișierul `.env`
+
+Pornește de la exemplul inclus:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Completează cel puțin:
+Pe Windows poți copia manual fișierul `.env.example` și îl poți redenumi `.env`.
+
+Completează cel puțin:
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
-AUTH_SECRET=un-secret-lung-si-aleator
+AUTH_SECRET=un-secret-lung-aleator-si-stabil
 ```
 
-Pentru accesul de administrator, completează și:
+Pentru contul administratorului:
 
 ```env
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=o-parola-puternica
+ADMIN_PASSWORD=o-parola-puternica-de-minimum-10-caractere
 ```
 
-4. Pornește aplicația:
+Aplicația nu pornește dacă `DATABASE_URL` sau `AUTH_SECRET` lipsesc.
+
+### 3. Pornește aplicația
 
 ```bash
 npm start
 ```
 
-Aplicația creează automat tabelele și indexurile lipsă la pornire. Implicit este disponibilă la `http://localhost:3000`, iar verificarea de sănătate este la `/health`.
+Apoi deschide:
 
-Pentru dezvoltare cu repornire automată:
+```text
+http://localhost:3000
+```
+
+În timpul dezvoltării poți folosi:
 
 ```bash
 npm run dev
 ```
 
-## Teste
+La prima pornire, aplicația verifică setările, pregătește tabelele PostgreSQL, creează sau actualizează contul de administrator și pornește serviciile de curățare periodică.
 
-Rulează:
+## Variabile de mediu
 
-```bash
-npm test
-```
+| Variabilă | Când este necesară | La ce folosește |
+|---|---|---|
+| `DATABASE_URL` | Întotdeauna | Conexiunea la PostgreSQL |
+| `AUTH_SECRET` | Întotdeauna | Protejează tokenurile de autentificare |
+| `ADMIN_EMAIL` | Pentru panoul admin | Emailul administratorului |
+| `ADMIN_PASSWORD` | Pentru panoul admin | Parola administratorului |
+| `TURNSTILE_SITE_KEY` | Opțional | Cheia publică Cloudflare Turnstile |
+| `TURNSTILE_SECRET_KEY` | Opțional | Cheia secretă Cloudflare Turnstile |
+| `VAPID_PUBLIC_KEY` | Pentru notificări | Cheia publică Web Push |
+| `VAPID_PRIVATE_KEY` | Pentru notificări | Cheia privată; nu trebuie publicată |
+| `VAPID_SUBJECT` | Pentru notificări | Contactul serviciului, de exemplu `mailto:admin@example.com` |
+| `UPLOAD_DIR` | Opțional | Folderul în care se salvează fotografiile |
+| `DATA_DIR` | Opțional | Folder pentru date auxiliare |
+| `PORT` | De obicei automat | Portul serverului; Render îl setează singur |
 
-Testele acoperă autentificarea, hash-ul parolei, crearea unei sesizări, respingerea duplicatelor, listarea completă în ordine stabilă, configurarea obligatorie, notificările push și politica de retenție de 90 de zile.
+Dacă folosești notificări push, toate cele trei variabile `VAPID_*` trebuie configurate. Aplicația refuză o configurare incompletă pentru a evita erori greu de observat.
 
-## Temă luminoasă și întunecată
+## Notificări push
 
-Aplicația cetățeanului și panoul de administrare au un switch **Mod întunecat** în antet. Alegerea este memorată local pe dispozitiv și se aplică și paginii de detalii a sesizării. La prima utilizare, dacă nu există o alegere salvată, aplicația respectă preferința light/dark a sistemului de operare. Tile-urile OpenStreetMap nu sunt modificate de schimbarea temei.
-
-
-
-## Notificări push la schimbarea statusului
-
-Aplicația poate trimite notificări Web Push proprietarului unei sesizări create din cont. Notificarea este trimisă când administratorul schimbă efectiv statusul în:
-
-- `confirmata` — „Sesizarea dumneavoastră a fost confirmată”;
-- `in_lucru` — „Sesizarea dumneavoastră este în lucru”;
-- `rezolvata` — „Sesizarea dumneavoastră a fost rezolvată”;
-- `noua` — pentru o sesizare redeschisă și revenită la starea nouă.
-
-O actualizare care păstrează același status nu trimite o notificare nouă. Sesizările anonime nu pot primi push, deoarece nu sunt asociate unui cont. Abonamentul este salvat separat pentru fiecare browser/dispozitiv în tabela `push_subscriptions`. Endpointurile expirate sunt eliminate automat când serviciul push răspunde cu `404` sau `410`.
-
-Utilizatorul activează sau dezactivează notificările din fila **Cont**. Permisiunea browserului este cerută numai după apăsarea butonului. Apăsarea notificării deschide direct pagina sesizării.
-
-Instrucțiunile scurte dedicate Render sunt și în [`PUSH_RENDER_SETUP.md`](PUSH_RENDER_SETUP.md).
-
-### Configurare VAPID
-
-Generează o singură dată perechea de chei:
+Cheile VAPID se generează o singură dată:
 
 ```bash
 npm run push:keys
 ```
 
-Comanda afișează trei linii care trebuie copiate în `.env` local sau în **Render → Environment**:
+Apoi adaugă valorile în `.env` sau în **Render → Environment**:
 
 ```env
-VAPID_PUBLIC_KEY=cheia-publica-generata
-VAPID_PRIVATE_KEY=cheia-privata-generata
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
 VAPID_SUBJECT=mailto:adresa-ta@example.com
 ```
 
-Păstrează `VAPID_PRIVATE_KEY` secretă și stabilă între deploy-uri. Nu o salva în Git. Dacă toate cele trei variabile lipsesc, aplicația pornește normal, dar afișează notificările ca neconfigurate. Dacă este setată doar o parte dintre ele, serverul refuză pornirea pentru a evita o configurare incompletă.
+Păstrează aceleași chei la toate deploy-urile. Dacă le schimbi, abonamentele existente pot deveni invalide.
 
-Render oferă HTTPS automat, necesar pentru service worker și Web Push. Pe iPhone/iPad, utilizatorul trebuie să instaleze aplicația pe ecranul principal și să deschidă versiunea instalată înainte de activarea notificărilor. Pe dispozitivele care nu acceptă Push API, aplicația afișează un mesaj și continuă să funcționeze fără notificări.
+Utilizatorul decide singur dacă activează notificările. Permisiunea este cerută din secțiunea **Cont**, nu automat la deschiderea aplicației.
 
-Schimbarea statusului rămâne salvată chiar dacă un furnizor push este temporar indisponibil; eroarea de notificare nu anulează actualizarea sesizării.
+Pe iPhone și iPad, aplicația trebuie adăugată pe ecranul principal și deschisă de acolo pentru ca notificările web să funcționeze.
 
-## Retenția sesizărilor rezolvate
+## Hartă și zonă de funcționare
 
-Harta încarcă toate sesizările păstrate în PostgreSQL, în ordine de la cea mai nouă la cea mai veche. Afișarea completă este separată de politica de retenție:
-
-- sesizările cu status `noua`, `confirmata` sau `in_lucru` sunt păstrate fără termen automat de expirare;
-- când administratorul schimbă statusul în `rezolvata`, aplicația memorează momentul în coloana `rezolvata_la`;
-- o sesizare rezolvată rămâne vizibilă timp de 90 de zile;
-- după 90 de zile de la rezolvare, înregistrarea și poza sa locală sunt șterse automat;
-- dacă sesizarea este redeschisă, termenul este anulat; la o rezolvare ulterioară începe un nou interval de 90 de zile.
-
-Curățarea rulează la pornirea serviciului și apoi o dată la 24 de ore. Interogarea șterge exclusiv rândurile care îndeplinesc ambele condiții:
+Toate sesizările păstrate sunt afișate pe aceeași hartă. Cele mai noi sunt procesate primele, folosind ordinea:
 
 ```sql
-status = 'rezolvata'
-AND COALESCE(rezolvata_la, actualizat_la) < now() - interval '90 days'
+ORDER BY data_raportare DESC, id DESC
 ```
 
-`src/config/schema.sql` adaugă automat coloana și indexul necesar și face un backfill conservator pentru sesizările care erau deja rezolvate înainte de această modificare.
+Zona acceptată este configurată în:
+
+```text
+src/config/service-area.js
+```
+
+Configurația actuală este pregătită pentru zona Constanța. Pentru alt oraș trebuie schimbate limitele geografice și poziția inițială a hărții.
+
+## Fotografii
+
+În configurația implicită, fotografiile sunt salvate în:
+
+```text
+uploads/
+```
+
+Acest lucru este suficient pentru dezvoltare sau pentru un server cu disc persistent. Pe un serviciu cu filesystem temporar, fotografiile se pot pierde la restart sau redeploy.
+
+Pentru producție se recomandă:
+
+- un disc persistent;
+- Cloudinary;
+- Amazon S3;
+- Cloudflare R2;
+- alt serviciu de stocare compatibil.
+
+Directorul poate fi schimbat prin variabila `UPLOAD_DIR`.
 
 ## Deploy pe Render
 
-Creează un **Web Service** Node.js și o bază de date PostgreSQL, apoi configurează serviciul astfel:
+Proiectul include un fișier `render.yaml`. Configurația recomandată este:
 
 ```text
 Build Command: npm ci && npm test
 Start Command: npm start
+Health Check Path: /health
 ```
 
-În **Environment**, adaugă:
+Pașii sunt:
 
-| Variabilă | Obligatorie | Rol |
-|---|---:|---|
-| `DATABASE_URL` | Da | URL-ul intern al bazei PostgreSQL |
-| `AUTH_SECRET` | Da | Semnarea token-urilor și a hash-urilor anonime |
-| `ADMIN_EMAIL` | Pentru admin | Emailul contului administrator |
-| `ADMIN_PASSWORD` | Pentru admin | Parola contului administrator; minimum 10 caractere |
-| `TURNSTILE_SITE_KEY` | Nu | Cheia publică Cloudflare Turnstile |
-| `TURNSTILE_SECRET_KEY` | Nu | Cheia secretă Cloudflare Turnstile |
-| `VAPID_PUBLIC_KEY` | Pentru push | Cheia publică Web Push, expusă browserului |
-| `VAPID_PRIVATE_KEY` | Pentru push | Cheia privată Web Push; trebuie păstrată secretă |
-| `VAPID_SUBJECT` | Pentru push | Contact `mailto:` sau adresă `https://` pentru VAPID |
-| `UPLOAD_DIR` | Nu | Director personalizat pentru pozele încărcate |
-| `DATA_DIR` | Nu | Director personalizat pentru datele locale auxiliare |
+1. creează o bază PostgreSQL în Render;
+2. creează un Web Service conectat la repository;
+3. adaugă `DATABASE_URL`, folosind URL-ul intern al bazei;
+4. adaugă `AUTH_SECRET`, `ADMIN_EMAIL` și `ADMIN_PASSWORD`;
+5. adaugă cheile VAPID dacă vrei notificări;
+6. pornește deploy-ul.
 
-Nu seta manual `PORT`; Render îl furnizează automat, iar aplicația îl citește din `process.env.PORT`.
+Nu trebuie să setezi manual `PORT` pe Render.
 
-Fișierul `render.yaml` din proiect poate fi folosit pentru un deploy de tip Blueprint. Variabilele marcate `sync: false` trebuie introduse în dashboard-ul Render.
+Dacă Render păstrează un build vechi în cache, folosește:
 
-### Fișiere încărcate
+```text
+Manual Deploy → Clear build cache & deploy
+```
 
-Pozele sunt salvate implicit în directorul local `uploads/`. Pentru păstrare durabilă în producție, configurează un spațiu persistent sau un serviciu extern de stocare și setează `UPLOAD_DIR` conform infrastructurii folosite.
+## Teste
 
-## Migrarea datelor JSON existente
+Rulează testele cu:
 
-Pentru a importa conținutul din `data/users.json` și `data/avarii.json` în PostgreSQL:
+```bash
+npm test
+```
+
+Pe Render, testele rulează automat în timpul buildului prin:
+
+```bash
+npm ci && npm test
+```
+
+Suita verifică fluxurile importante: autentificarea, parolele, crearea sesizărilor, duplicatele, statusurile, retenția de 90 de zile, notificările push, categoriile, interfața PWA, tema light/dark, layoutul mobil și navigarea administratorului.
+
+Testele folosesc în principal mock-uri pentru baza de date. Înainte de o lansare oficială sunt recomandate și teste într-un browser real, pe telefoane reale și pe o bază de date de staging.
+
+## Comenzi utile
+
+| Comandă | Ce face |
+|---|---|
+| `npm start` | Pornește aplicația |
+| `npm run dev` | Pornește aplicația cu repornire automată |
+| `npm test` | Rulează testele |
+| `npm run push:keys` | Generează cheile pentru notificări |
+| `npm run db:migrate` | Importă datele JSON vechi în PostgreSQL |
+
+## Migrarea datelor vechi
+
+Dacă există date în `data/users.json` și `data/avarii.json`, ele pot fi importate în PostgreSQL cu:
 
 ```bash
 npm run db:migrate
 ```
 
-Scriptul creează schema dacă este necesar și face actualizare la conflict pentru înregistrările cu același ID. Fă backup înainte de migrarea unei baze cu date importante.
+Este recomandat să faci un backup înainte de a rula migrarea pe o bază care conține deja date importante.
 
-## Variabile de securitate
-
-`AUTH_SECRET` trebuie să fie stabil între deploy-uri. Schimbarea sa invalidează token-urile existente și modifică hash-urile anonime folosite de aplicație. Nu salva fișierul `.env` în Git.
-
-Dacă cheile Turnstile nu sunt configurate, verificarea Turnstile este dezactivată. Pentru o versiune publică, configurează ambele chei.
-
-## Structură
+## Structura proiectului
 
 ```text
-public/                 interfața web
-src/app.js              configurarea aplicației Express
-src/index.js            validarea mediului și pornirea serverului
-src/config/             PostgreSQL, schemă și configurare
-src/controllers/        logica rutelor
-src/models/             accesul la date
-src/routes/             rutele HTTP
-src/security/           parole, token-uri și validări
-src/services/           geocodare, retenție și notificări push
-test/                   testele automate
-scripts/                scripturi de migrare
-uploads/                poze încărcate în runtime
+public/           interfața web, tema, hărțile și PWA
+src/app.js        configurarea aplicației Express
+src/index.js      validarea mediului și pornirea serverului
+src/config/       baza de date și configurările comune
+src/controllers/  logica rutelor
+src/middleware/   autentificare, upload și protecții
+src/models/       interogările PostgreSQL
+src/routes/       rutele HTTP
+src/security/     parole, tokenuri și validări
+src/services/     notificări, geocodare și retenție
+scripts/          migrare și generarea cheilor VAPID
+test/             testele automate
+uploads/          fotografiile încărcate în timpul rulării
+data/             date JSON istorice sau opționale
 ```
 
-## Comenzi disponibile
+## Instalarea ca aplicație pe telefon
 
-| Comandă | Descriere |
-|---|---|
-| `npm start` | Pornește serverul |
-| `npm run dev` | Pornește cu Nodemon |
-| `npm test` | Rulează testele automate |
-| `npm run db:migrate` | Importă datele JSON în PostgreSQL |
-| `npm run push:keys` | Generează perechea VAPID pentru notificări push |
+Aplicația este o PWA, deci poate fi instalată fără un APK separat.
 
-## Afișarea completă pe hartă
+Pe Android:
 
-`GET /avarii` întoarce toate sesizările păstrate în PostgreSQL. Nu există parametri `page`/`limit` și nici controale **Anterior/Următor** în interfețe.
+1. deschide site-ul în Chrome;
+2. apasă meniul cu trei puncte;
+3. alege **Instalează aplicația** sau **Adaugă pe ecranul principal**.
 
-Interogarea folosește:
+Pe iPhone:
 
-```sql
-SELECT data
-FROM avarii
-ORDER BY data_raportare DESC, id DESC;
-```
+1. deschide site-ul în Safari;
+2. apasă **Share**;
+3. alege **Add to Home Screen**.
 
-Ordinea este globală și deterministă: cele mai noi sesizări apar primele, iar `id DESC` separă stabil înregistrările care au aceeași secundă de raportare. `harta.html` afișează toate punctele primite pe o singură hartă, fără listă paginată dedesubt. Detaliile se deschid din marker, iar fila „Ale mele” rămâne separată. Panoul `admin.html` păstrează lista de administrare și harta, dar fără paginare. Filtrele și căutarea se aplică întregului set încărcat.
+Evită instalarea direct din browserul intern WhatsApp. Deschide mai întâi linkul în Chrome sau Safari.
 
-Sesizările active sunt păstrate fără expirare. Numai cele rezolvate sunt eliminate automat după 90 de zile, conform secțiunii despre retenție.
+După un deploy important, aplicația instalată poate păstra temporar versiunea veche. De obicei este suficient să o închizi și să o redeschizi. Dacă problema persistă, șterge datele site-ului o singură dată.
 
-## Registrul npm folosit la deploy
+## Ce mai trebuie avut în vedere pentru producție
 
-Fișierul `package-lock.json` folosește registry-ul public `https://registry.npmjs.org/`, astfel încât `npm ci` să funcționeze pe Render. Nu comiteți în repository un lockfile generat cu URL-uri către un registry privat sau intern inaccesibil din Render.
+Aplicația este potrivită pentru demonstrații și proiecte pilot. Pentru o lansare oficială sunt recomandate:
+
+- stocare persistentă pentru fotografii;
+- expirarea automată a tokenurilor;
+- un flux „Am uitat parola”;
+- backup și procedură de restaurare pentru PostgreSQL;
+- verificarea bazei de date în endpointul de health check;
+- monitorizarea erorilor;
+- o politică de confidențialitate adaptată beneficiarului;
+- teste pe dispozitive reale;
+- un rate limiter distribuit dacă aplicația rulează pe mai multe instanțe.
+
+## Branding și folosire comercială
+
+Înainte ca aplicația să fie publicată în numele unei companii sau instituții, trebuie clarificate:
+
+- drepturile asupra codului;
+- permisiunea de a folosi sigla și numele beneficiarului;
+- cine răspunde pentru datele și fotografiile încărcate;
+- politica de păstrare și ștergere a informațiilor;
+- condițiile de suport și mentenanță.
+
+---
+
+Aplicația a fost gândită ca un punct de legătură simplu între cetățean și echipa care rezolvă problema: raportarea să dureze puțin, locația să fie clară, iar utilizatorul să știe ce se întâmplă cu sesizarea lui.
