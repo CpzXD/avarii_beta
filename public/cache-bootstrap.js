@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='network-only-20260713-15-mobile-layout';
+  const VERSION='network-only-20260713-18-admin-navigation';
   async function registerFreshWorker(){
     if(!('serviceWorker' in navigator))return;
     const previous=localStorage.getItem('avariiServiceWorkerMode');
