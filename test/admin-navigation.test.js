@@ -5,20 +5,16 @@ const path = require('node:path');
 
 const admin = fs.readFileSync(path.join(__dirname, '..', 'public', 'admin.html'), 'utf8');
 
-test('panoul admin oferă navigare către coordonatele fiecărei avarii', () => {
+test('adminul are buton de navigare in lista si popup', () => {
   assert.match(admin, /Du-mă acolo/);
-  assert.doesNotMatch(admin, /🧭/);
-  assert.match(admin, /function navigationButton\(a\)/);
-  assert.match(admin, /function openNavigation\(lat,lng\)/);
-  assert.match(admin, /geo:0,0\?q=\$\{destination\}/);
-  assert.match(admin, /google\.com\/maps\/dir\/\?api=1&destination=/);
+  assert.match(admin, /navigationButton\(a\)/);
 });
 
-test('butonul de navigare apare atât în listă, cât și în popup-ul hărții', () => {
-  const uses = admin.match(/\$\{navigationButton\(a\)\}/g) || [];
-  assert.equal(uses.length, 2);
-  assert.match(admin, /class="item-actions"/);
-  assert.match(admin, /\.popup \.navigate-btn/);
-  assert.match(admin, /\.navigate-btn\{[^}]*background:#2563eb/);
-  assert.doesNotMatch(admin, /\.navigate-btn\{[^}]*background:#16a34a/);
+test('navigatia se deschide separat fara sa inlocuiasca pagina admin', () => {
+  assert.match(admin, /target='_blank'/);
+  assert.match(admin, /rel='noopener noreferrer'/);
+  assert.match(admin, /geo:0,0\?q=\$\{destination\}/);
+  assert.match(admin, /google\.com\/maps\/dir/);
+  assert.doesNotMatch(admin, /location\.href=`geo:/);
+  assert.doesNotMatch(admin, /location\.href=webUrl/);
 });

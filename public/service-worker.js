@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v18-user-chip';
+const VERSION='avarii-network-only-v19-navigation-new-tab';
 
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
