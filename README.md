@@ -168,7 +168,6 @@ La prima pornire, aplicația verifică setările, pregătește tabelele PostgreS
 | `VAPID_PRIVATE_KEY` | Pentru notificări | Cheia privată; nu trebuie publicată |
 | `VAPID_SUBJECT` | Pentru notificări | Contactul serviciului, de exemplu `mailto:admin@example.com` |
 | `UPLOAD_DIR` | Opțional | Folderul în care se salvează fotografiile |
-| `DATA_DIR` | Opțional | Folder pentru date auxiliare |
 | `PORT` | De obicei automat | Portul serverului; Render îl setează singur |
 
 Dacă folosești notificări push, toate cele trei variabile `VAPID_*` trebuie configurate. Aplicația refuză o configurare incompletă pentru a evita erori greu de observat.

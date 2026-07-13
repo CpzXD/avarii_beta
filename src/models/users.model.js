@@ -6,7 +6,6 @@ async function ensureAdmin() {
   const adminPassword = String(process.env.ADMIN_PASSWORD || '');
   if (!adminEmail || adminPassword.length < 10) return;
 
-  const existing = await gasesteDupaEmail(adminEmail);
   const { rows: adminRows } = await pool.query(
     `SELECT id, data FROM users WHERE data->>'rol' = 'admin' LIMIT 1`
   );
