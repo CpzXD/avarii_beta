@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='network-only-20260713-22-account-theme';
+  const VERSION='network-only-20260713-23-user-chip';
   async function registerFreshWorker(){
     if(!('serviceWorker' in navigator))return;
     const previous=localStorage.getItem('avariiServiceWorkerMode');

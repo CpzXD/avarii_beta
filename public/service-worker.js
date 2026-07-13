@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v17-account-theme';
+const VERSION='avarii-network-only-v18-user-chip';
 
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
