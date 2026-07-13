@@ -1,0 +1,115 @@
+:root{
+  --theme-switch-track:#cbd5e1;
+  --theme-switch-track-active:#2563eb;
+  --theme-switch-thumb:#fff;
+}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --theme-switch-track:#475569;
+  --theme-switch-track-active:#3b82f6;
+}
+.theme-switch{display:inline-flex;align-items:center;gap:9px;min-height:40px;cursor:pointer;user-select:none;font-size:13px;font-weight:850;white-space:nowrap}.theme-switch__label{line-height:1.1}.theme-switch__input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}.theme-switch__track{position:relative;display:inline-block;width:46px;height:26px;flex:0 0 46px;border-radius:999px;background:var(--theme-switch-track);box-shadow:inset 0 0 0 1px rgba(15,23,42,.12);transition:background .18s ease}.theme-switch__thumb{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:var(--theme-switch-thumb);box-shadow:0 2px 7px rgba(15,23,42,.28);transition:transform .18s ease}.theme-switch__input:checked+.theme-switch__track{background:var(--theme-switch-track-active)}.theme-switch__input:checked+.theme-switch__track .theme-switch__thumb{transform:translateX(20px)}.theme-switch__input:focus-visible+.theme-switch__track{outline:3px solid rgba(37,99,235,.32);outline-offset:3px}.theme-switch__state{font-size:12px;opacity:.78}
+
+/* Aplicația cetățeanului */
+html[data-theme="dark"] body.client-app{background:#0b1220;color:#e5edf7}
+html[data-theme="dark"] .client-app .header{background:#0f172a;border-color:#26364b}
+html[data-theme="dark"] .client-app .brand-title{color:#f8fafc}
+html[data-theme="dark"] .client-app .user-chip{background:#1e293b;color:#cbd5e1}
+html[data-theme="dark"] .client-app .card,
+html[data-theme="dark"] .client-app .item,
+html[data-theme="dark"] .client-app .empty{background:#111c2e;border-color:#26364b;color:#e5edf7;box-shadow:0 10px 30px rgba(0,0,0,.22)}
+html[data-theme="dark"] .client-app .hero{background:linear-gradient(135deg,#1e73be 0%,#60a5fa 50%,#ff7a16 100%);border-color:transparent;color:#fff}
+html[data-theme="dark"] .client-app .stat,
+html[data-theme="dark"] .client-app .map-location,
+html[data-theme="dark"] .client-app .file-upload-control{background:#162235;border-color:#2b3c53;color:#e5edf7}
+html[data-theme="dark"] .client-app .subtitle,
+html[data-theme="dark"] .client-app .muted,
+html[data-theme="dark"] .client-app .stat span,
+html[data-theme="dark"] .client-app .map-title span,
+html[data-theme="dark"] .client-app .report-intro p,
+html[data-theme="dark"] .client-app .report-step-title p,
+html[data-theme="dark"] .client-app .report-submit-note,
+html[data-theme="dark"] .client-app .file-upload-name,
+html[data-theme="dark"] .client-app .file-upload-help,
+html[data-theme="dark"] .client-app .install-note{color:#9fb0c4}
+html[data-theme="dark"] .client-app .file-upload-name.has-file{color:#f8fafc}
+html[data-theme="dark"] .client-app .map-title,
+html[data-theme="dark"] .client-app .map-location{border-color:#26364b}
+html[data-theme="dark"] .client-app .report-map-frame{border-color:#33465f}
+html[data-theme="dark"] .client-app input,
+html[data-theme="dark"] .client-app select,
+html[data-theme="dark"] .client-app textarea{background:#0b1424;color:#f8fafc;border-color:#3a4b63}
+html[data-theme="dark"] .client-app input::placeholder,
+html[data-theme="dark"] .client-app textarea::placeholder{color:#75869b}
+html[data-theme="dark"] .client-app .filters button{background:#111c2e;border-color:#33465f;color:#cbd5e1}
+html[data-theme="dark"] .client-app .filters button.active{background:#2563eb;border-color:#2563eb;color:#fff}
+html[data-theme="dark"] .client-app .report-step-number,
+html[data-theme="dark"] .client-app .file-upload-button,
+html[data-theme="dark"] .client-app .btn:not(.green):not(.light),
+html[data-theme="dark"] .client-app .mini-btn:not(.light){background:#2563eb;color:#fff}
+html[data-theme="dark"] .client-app .btn.light{background:#1e3a5f;color:#dbeafe}
+html[data-theme="dark"] .client-app .hint{background:#172554;color:#bfdbfe}
+html[data-theme="dark"] .client-app .gps-ok,
+html[data-theme="dark"] .client-app .result.ok{background:#123524;color:#bbf7d0}
+html[data-theme="dark"] .client-app .gps-lipsa,
+html[data-theme="dark"] .client-app .result.err{background:#431b22;color:#fecaca}
+html[data-theme="dark"] .client-app .duplicate{background:#3a2412;border-color:#7c4a1d;color:#fed7aa}
+html[data-theme="dark"] .client-app .mini-btn.light{background:#21170f;color:#fdba74;border-color:#9a5b25}
+html[data-theme="dark"] .client-app .follow-btn{background:#1e3a5f;color:#dbeafe}
+html[data-theme="dark"] .client-app .follow-btn.done{background:#123524;color:#bbf7d0}
+html[data-theme="dark"] .client-app .bottom-tabs{background:rgba(15,23,42,.97);border-color:#26364b;box-shadow:0 -10px 30px rgba(0,0,0,.32)}
+html[data-theme="dark"] .client-app .tab-btn{color:#9fb0c4}
+html[data-theme="dark"] .client-app .tab-btn.active{background:#2563eb;color:#fff}
+html[data-theme="dark"] .client-app .leaflet-popup-content-wrapper,
+html[data-theme="dark"] .client-app .leaflet-popup-tip{background:#111c2e;color:#e5edf7}
+html[data-theme="dark"] .client-app .leaflet-popup-close-button{color:#cbd5e1}
+
+/* Panoul de administrare */
+html[data-theme="dark"] body.admin-app{background:#0b1220;color:#e5edf7}
+html[data-theme="dark"] .admin-app .top{background:#080f1d;border-color:#26364b}
+html[data-theme="dark"] .admin-app aside{background:#0f172a;border-color:#334155;color:#e5edf7}
+html[data-theme="dark"] .admin-app .stat,
+html[data-theme="dark"] .admin-app .item{background:#111c2e;border-color:#26364b;color:#e5edf7;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+html[data-theme="dark"] .admin-app .muted{color:#9fb0c4}
+html[data-theme="dark"] .admin-app .search input,
+html[data-theme="dark"] .admin-app .popup select,
+html[data-theme="dark"] .admin-app .popup textarea{background:#0b1424;color:#f8fafc;border-color:#3a4b63}
+html[data-theme="dark"] .admin-app .search input::placeholder,
+html[data-theme="dark"] .admin-app .popup textarea::placeholder{color:#75869b}
+html[data-theme="dark"] .admin-app .filters button{background:#111c2e;color:#cbd5e1;border-color:#33465f}
+html[data-theme="dark"] .admin-app .filters button.active{background:#2563eb;border-color:#2563eb;color:#fff}
+html[data-theme="dark"] .admin-app .item a{color:#60a5fa}
+html[data-theme="dark"] .admin-app .leaflet-popup-content-wrapper,
+html[data-theme="dark"] .admin-app .leaflet-popup-tip{background:#111c2e;color:#e5edf7}
+html[data-theme="dark"] .admin-app .leaflet-popup-close-button{color:#cbd5e1}
+html[data-theme="dark"] .admin-app .popup button:not(.navigate-btn):not(.danger){background:#2563eb}
+
+/* Detaliul sesizării urmează tema aleasă din aplicație. */
+html[data-theme="dark"] body.detail-app{background:#0b1220;color:#e5edf7}
+html[data-theme="dark"] .detail-app .card,
+html[data-theme="dark"] .detail-app .feedback{background:#111c2e;border-color:#26364b;color:#e5edf7;box-shadow:0 12px 34px rgba(0,0,0,.22)}
+html[data-theme="dark"] .detail-app .muted,
+html[data-theme="dark"] .detail-app .rating-label,
+html[data-theme="dark"] .detail-app .message-time{color:#9fb0c4}
+html[data-theme="dark"] .detail-app .meta-box,
+html[data-theme="dark"] .detail-app .feedback-current{background:#162235;border-color:#2b3c53}
+html[data-theme="dark"] .detail-app .tl-body{border-color:#26364b}
+html[data-theme="dark"] .detail-app .msg{background:#162235;border-color:#33465f;color:#e5edf7}
+html[data-theme="dark"] .detail-app .msg.user{background:#123524;border-color:#24613d}
+html[data-theme="dark"] .detail-app .msg.admin{background:#3a2412;border-color:#7c4a1d}
+html[data-theme="dark"] .detail-app .msg.sistem{background:#172554;border-color:#334e91}
+html[data-theme="dark"] .detail-app input,
+html[data-theme="dark"] .detail-app textarea{background:#0b1424;color:#f8fafc;border-color:#3a4b63}
+html[data-theme="dark"] .detail-app .ghost{background:#111c2e;color:#93c5fd;border-color:#33465f}
+html[data-theme="dark"] .detail-app .follow-card{background:#172554;color:#bfdbfe;border-color:#334e91}
+html[data-theme="dark"] .detail-app .result.ok{background:#123524;color:#bbf7d0}
+html[data-theme="dark"] .detail-app .result.err{background:#431b22;color:#fecaca}
+html[data-theme="dark"] .detail-app .leaflet-popup-content-wrapper,
+html[data-theme="dark"] .detail-app .leaflet-popup-tip{background:#111c2e;color:#e5edf7}
+
+@media(min-width:900px){html[data-theme="dark"] .client-app .bottom-tabs{background:#0f172a;border-color:#26364b}}
+@media(max-width:620px){.client-app .theme-switch__label,.client-app .theme-switch__state{display:none}.client-app .theme-switch{gap:0}.client-app .header-actions{gap:8px}}
+@media(prefers-reduced-motion:reduce){.theme-switch__track,.theme-switch__thumb{transition:none}}
+html[data-theme="dark"] .client-app #account-card .primary-cta[style]{background:#1e3a5f!important;color:#dbeafe!important}
+html[data-theme="dark"] .admin-app .mobile-blocker{background:#0b1220;color:#e5edf7}
+html[data-theme="dark"] .admin-app .mobile-blocker .box{background:#111c2e;border-color:#26364b;color:#e5edf7}

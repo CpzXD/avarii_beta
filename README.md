@@ -63,6 +63,10 @@ npm test
 
 Testele acoperă autentificarea, hash-ul parolei, crearea unei sesizări, respingerea duplicatelor, listarea completă în ordine stabilă, configurarea obligatorie, notificările push și politica de retenție de 90 de zile.
 
+## Temă luminoasă și întunecată
+
+Aplicația cetățeanului și panoul de administrare au un switch **Mod întunecat** în antet. Alegerea este memorată local pe dispozitiv și se aplică și paginii de detalii a sesizării. La prima utilizare, dacă nu există o alegere salvată, aplicația respectă preferința light/dark a sistemului de operare. Tile-urile OpenStreetMap nu sunt modificate de schimbarea temei.
+
 
 
 ## Notificări push la schimbarea statusului
