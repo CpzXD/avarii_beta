@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v9-osm-revert';
+const VERSION='avarii-network-only-v10-mobile-layout';
 
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
