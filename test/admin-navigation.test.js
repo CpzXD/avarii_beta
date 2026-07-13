@@ -7,6 +7,7 @@ const admin = fs.readFileSync(path.join(__dirname, '..', 'public', 'admin.html')
 
 test('panoul admin oferă navigare către coordonatele fiecărei avarii', () => {
   assert.match(admin, /Du-mă acolo/);
+  assert.doesNotMatch(admin, /🧭/);
   assert.match(admin, /function navigationButton\(a\)/);
   assert.match(admin, /function openNavigation\(lat,lng\)/);
   assert.match(admin, /geo:0,0\?q=\$\{destination\}/);
