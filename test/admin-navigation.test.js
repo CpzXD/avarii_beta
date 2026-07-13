@@ -19,4 +19,6 @@ test('butonul de navigare apare atât în listă, cât și în popup-ul hărții
   assert.equal(uses.length, 2);
   assert.match(admin, /class="item-actions"/);
   assert.match(admin, /\.popup \.navigate-btn/);
+  assert.match(admin, /\.navigate-btn\{[^}]*background:#2563eb/);
+  assert.doesNotMatch(admin, /\.navigate-btn\{[^}]*background:#16a34a/);
 });

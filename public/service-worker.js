@@ -1,4 +1,4 @@
-const VERSION='avarii-network-only-v13-admin-navigation';
+const VERSION='avarii-network-only-v14-admin-navigation-blue';
 
 self.addEventListener('install',event=>{
   event.waitUntil(self.skipWaiting());
