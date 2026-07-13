@@ -8,6 +8,25 @@ CREATE TABLE IF NOT EXISTS users (
   data JSONB NOT NULL
 );
 
+
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  refresh_token_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  revoke_reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_active_user
+  ON sessions (user_id)
+  WHERE revoked_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS avarii (
   id TEXT PRIMARY KEY,
   status TEXT NOT NULL,

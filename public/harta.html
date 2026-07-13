@@ -171,7 +171,7 @@
 <script>
 const labels={noua:'Nouă',confirmata:'Confirmată',in_lucru:'În lucru',rezolvata:'Rezolvată'};
 const colors={noua:'#e11d48',confirmata:'#f97316',in_lucru:'#0d9488',rezolvata:'#22c55e'};
-let user=JSON.parse(localStorage.getItem('user')||'null');if(user&&!AvariiSecurity.tokenFor('user')){AvariiSecurity.clearSession('user');user=null}
+let user=JSON.parse(localStorage.getItem('user')||'null')
 let avarii=[], activeMarkers=[], activeFilter='active_only', activeMap=null, reportMap=null, reportPin, latitudine=null, longitudine=null, selectedAddress='', addressToken=0, deferredInstallPrompt=null;
 const defaultCenter=AVARII_MAP_CONFIG.center;
 const bounds=avariiMapBounds();
@@ -318,7 +318,7 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredIns
 window.addEventListener('appinstalled',()=>{localStorage.setItem('pwaInstalled','1');deferredInstallPrompt=null;wireInstallButton()});
 function renderAccount(){
   const box=$('account-content');
-  if(user){box.innerHTML=`<h1 style="margin:0 0 8px;font-size:22px">Cont</h1><p class="muted"><b>${user.prenume} ${user.nume}</b><br>${user.email}</p><div id="push-settings"></div>${installHtml()}<button class="btn light" id="logout-btn">Ieșire din cont</button>`;wireInstallButton();AvariiPush.renderSettings('push-settings',user);$('logout-btn').onclick=async()=>{try{await AvariiPush.unsubscribeCurrent({silent:true})}finally{AvariiSecurity.clearSession('user');user=null;updateUserUi()}};return}
+  if(user){box.innerHTML=`<h1 style="margin:0 0 8px;font-size:22px">Cont</h1><p class="muted"><b>${user.prenume} ${user.nume}</b><br>${user.email}</p><div id="push-settings"></div>${installHtml()}<button class="btn light" id="logout-btn">Ieșire din cont</button>`;wireInstallButton();AvariiPush.renderSettings('push-settings',user);$('logout-btn').onclick=async()=>{try{await AvariiPush.unsubscribeCurrent({silent:true})}finally{await AvariiSecurity.logout('user');user=null;updateUserUi()}};return}
   box.innerHTML=`<h1 style="margin:0 0 8px;font-size:22px">Conectare</h1><form id="inline-login"><label>Email</label><input type="email" id="login-email" placeholder="email@exemplu.ro" required><label>Parolă</label><input type="password" id="login-parola" placeholder="parola" required><button class="btn" type="submit">Conectează-te</button></form><div id="login-msg" class="result"></div><a class="primary-cta" style="background:#eef2ff;color:#1e3a8a;box-shadow:none" href="/register.html">Creează cont nou</a>${installHtml()}`;wireInstallButton();
   $('inline-login').onsubmit=async(e)=>{e.preventDefault();const msg=$('login-msg');try{const r=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('login-email').value,parola:$('login-parola').value,rol:'user'})});const data=await r.json();if(!r.ok)throw new Error(data.eroare||'Login eșuat');AvariiSecurity.saveSession('user',data);user=data.user;msg.className='result ok';msg.textContent='Conectat.';updateUserUi();openTab('active')}catch(err){msg.className='result err';msg.textContent=err.message}};
 }
@@ -328,9 +328,15 @@ document.querySelectorAll('#filters button').forEach(b=>b.onclick=()=>{document.
 $('poza').addEventListener('change',updatePhotoFileName);
 let reportRequestId=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`;$('report-started').value=Date.now();AvariiSecurity.loadTurnstile('report-turnstile','report-turnstile-token');$('form-sesizare').addEventListener('submit',async(e)=>{e.preventDefault();const btn=$('btn-trimite'),msg=$('mesaj-rezultat');if(latitudine&&longitudine&&!isInsideAvariiArea(latitudine,longitudine)){msg.className='result err';msg.textContent='❌ Pinul trebuie să fie în zona acoperită.';return}btn.disabled=true;btn.textContent='Se trimite...';msg.className='result';msg.textContent='';const fd=new FormData();fd.append('titlu',$('titlu').value);fd.append('categorie',$('categorie').value);fd.append('descriere',$('descriere').value);fd.append('website',$('report-website').value);fd.append('formStartedAt',$('report-started').value);fd.append('turnstileToken',$('report-turnstile-token').value);fd.append('requestId',reportRequestId);if(latitudine&&longitudine){fd.append('lat',latitudine);fd.append('lng',longitudine);fd.append('adresaText',selectedAddress||avariiCoordinateLabel(latitudine,longitudine))}else{fd.append('adresaText',$('adresaText').value)}const poza=$('poza').files[0];if(poza)fd.append('poza',poza);try{const r=await AvariiSecurity.authFetch('/avarii',{method:'POST',body:fd},'user');const data=await r.json();if(!r.ok)throw new Error(data.eroare||'Nu am putut trimite.');if(user){msg.className='result ok';msg.innerHTML=`✅ Sesizarea a fost trimisă. <a href="/sesizare-detalii.html?id=${data.id}&from=user">Vezi detalii</a>`}else{msg.className='result ok';msg.textContent='✅ Sesizarea a fost trimisă și este vizibilă pe hartă.'}$('form-sesizare').reset();updatePhotoFileName();$('report-started').value=Date.now();reportRequestId=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`;await load();openTab(user?'mine':'active')}catch(err){msg.className='result err';msg.textContent='❌ '+err.message}finally{btn.disabled=false;btn.textContent='Trimite sesizarea'}});
 async function load(){const r=await AvariiSecurity.authFetch('/avarii',{},'user');if(r.status===401){user=null;updateUserUi();return}avarii=await r.json();renderActive();renderMine();checkNearbyDuplicate()}
-updateUserUi();
-if(location.hash.includes('raporteaza'))openTab('report');else if(location.hash.includes('mine'))openTab('mine');else if(location.hash.includes('account'))openTab('account');else openTab('active');
-load();
+async function startCitizenApp(){
+  await AvariiSecurity.ready;
+  if(!AvariiSecurity.currentUser())await AvariiSecurity.refreshUserSession({force:true});
+  user=AvariiSecurity.currentUser();
+  updateUserUi();
+  if(location.hash.includes('raporteaza'))openTab('report');else if(location.hash.includes('mine'))openTab('mine');else if(location.hash.includes('account'))openTab('account');else openTab('active');
+  await load();
+}
+startCitizenApp();
 setInterval(()=>{if(!document.hidden)load()},15000);
 window.addEventListener('resize',refreshVisibleMaps,{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(refreshVisibleMaps,250));

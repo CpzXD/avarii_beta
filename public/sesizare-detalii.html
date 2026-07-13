@@ -4,12 +4,15 @@
 @media(max-width:380px){#map{height:260px}.card{padding:13px}.meta-grid{grid-template-columns:1fr}.star{font-size:31px}}
 </style><link rel="stylesheet" href="/theme.css?v=20260713-21-darkmode-both"><script src="/cache-bootstrap.js?v=20260713-21-darkmode-both"></script>
 </head><body class="detail-app"><div class="wrap"><div class="top"><div class="detail-heading"><img class="brand-mark" src="/branding/luxten-symbol.png" alt=""><div><h1 id="title">Sesizare</h1><p class="muted" id="sub"></p></div></div><div class="actions" id="topActions"></div></div><div id="main"></div></div><script src="/vendor/leaflet/leaflet.js?v=20260712-11"></script><script src="/map-config.js?v=20260713-21-darkmode-both"></script><script src="/location-utils.js?v=20260712-11"></script><script src="/security-client.js?v=20260712-11"></script><script>
+(async()=>{
+await AvariiSecurity.ready;
 const params=new URLSearchParams(location.search);
 const id=params.get('id');
 const from=params.get('from')||'user';
 const isMobile=window.matchMedia('(max-width: 900px)').matches;
 const role=from==='admin'?'admin':'user';
-const profile=JSON.parse(localStorage.getItem(role)||'null');
+if(role==='user'&&!AvariiSecurity.currentUser())await AvariiSecurity.refreshUserSession({force:true});
+const profile=role==='user'?AvariiSecurity.currentUser():JSON.parse(localStorage.getItem(role)||'null');
 if(from==='admin'&&isMobile){location.replace('/admin-login.html');throw new Error('Admin desktop only')}
 if(!profile||!AvariiSecurity.tokenFor(role)){AvariiSecurity.clearSession(role);location.replace(role==='admin'?'/admin-login.html':'/harta.html#account');throw new Error('Autentificare necesară')}
 const user=role==='user'?profile:null;
@@ -88,4 +91,5 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){load(fals
 window.addEventListener('resize',refreshDetailMap,{passive:true});
 window.addEventListener('orientationchange',()=>setTimeout(refreshDetailMap,250));
 window.addEventListener('pageshow',refreshDetailMap);
+})();
 </script></body></html>

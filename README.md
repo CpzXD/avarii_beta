@@ -134,6 +134,22 @@ ADMIN_PASSWORD=o-parola-puternica-de-minimum-10-caractere
 
 Aplicația nu pornește dacă `DATABASE_URL` sau `AUTH_SECRET` lipsesc.
 
+
+### Sesiunea persistentă a cetățeanului
+
+Cetățenii folosesc un access token scurt, păstrat numai în memoria paginii, și un refresh token rotativ într-un cookie `HttpOnly`, `Secure` în producție și `SameSite=Strict`. La expirarea access tokenului, aplicația îl reînnoiește automat și repetă cererea inițială, fără să trimită utilizatorul la login.
+
+Sesiunea are expirare glisantă: implicit se păstrează 365 de zile de la ultima utilizare și termenul este prelungit la fiecare refresh valid. Logoutul revocă sesiunea în PostgreSQL, iar tokenul vechi nu mai poate fi folosit după rotație.
+
+Setările pot fi ajustate opțional:
+
+```env
+USER_ACCESS_TOKEN_TTL_SECONDS=900
+USER_REFRESH_TOKEN_DAYS=365
+```
+
+Panoul administratorului folosește încă mecanismul anterior; migrarea lui la sesiuni persistente se poate face separat.
+
 ### 3. Pornește aplicația
 
 ```bash
@@ -160,6 +176,8 @@ La prima pornire, aplicația verifică setările, pregătește tabelele PostgreS
 |---|---|---|
 | `DATABASE_URL` | Întotdeauna | Conexiunea la PostgreSQL |
 | `AUTH_SECRET` | Întotdeauna | Protejează tokenurile de autentificare |
+| `USER_ACCESS_TOKEN_TTL_SECONDS` | Opțional | Durata access tokenului cetățeanului; implicit 900 secunde |
+| `USER_REFRESH_TOKEN_DAYS` | Opțional | Perioada glisantă de inactivitate; implicit 365 zile |
 | `ADMIN_EMAIL` | Pentru panoul admin | Emailul administratorului |
 | `ADMIN_PASSWORD` | Pentru panoul admin | Parola administratorului |
 | `TURNSTILE_SITE_KEY` | Opțional | Cheia publică Cloudflare Turnstile |
@@ -168,6 +186,7 @@ La prima pornire, aplicația verifică setările, pregătește tabelele PostgreS
 | `VAPID_PRIVATE_KEY` | Pentru notificări | Cheia privată; nu trebuie publicată |
 | `VAPID_SUBJECT` | Pentru notificări | Contactul serviciului, de exemplu `mailto:admin@example.com` |
 | `UPLOAD_DIR` | Opțional | Folderul în care se salvează fotografiile |
+| `DATA_DIR` | Opțional | Folder pentru date auxiliare |
 | `PORT` | De obicei automat | Portul serverului; Render îl setează singur |
 
 Dacă folosești notificări push, toate cele trei variabile `VAPID_*` trebuie configurate. Aplicația refuză o configurare incompletă pentru a evita erori greu de observat.
@@ -339,8 +358,7 @@ După un deploy important, aplicația instalată poate păstra temporar versiune
 Aplicația este potrivită pentru demonstrații și proiecte pilot. Pentru o lansare oficială sunt recomandate:
 
 - stocare persistentă pentru fotografii;
-- expirarea automată a tokenurilor;
-- un flux „Am uitat parola”;
+- finalizarea fluxului „Am uitat parola” și revocarea tuturor sesiunilor după resetare;
 - backup și procedură de restaurare pentru PostgreSQL;
 - verificarea bazei de date în endpointul de health check;
 - monitorizarea erorilor;

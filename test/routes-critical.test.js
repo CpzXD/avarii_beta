@@ -15,6 +15,7 @@ let duplicateCandidateCalls = 0;
 let citesteToateCalls = 0;
 const pushSubscriptions = new Map();
 const pushCalls = [];
+const sessions = new Map();
 
 const fakeUsersModel = {
   async ensureAdmin() {},
@@ -38,6 +39,52 @@ const fakeUsersModel = {
     if (!user) return null;
     const { parola, ...safe } = user;
     return safe;
+  },
+};
+
+
+
+const fakeSessionsModel = {
+  async creeaza(session) {
+    sessions.set(session.id, {
+      id: session.id,
+      user_id: session.userId,
+      refresh_token_hash: session.refreshTokenHash,
+      expires_at: session.expiresAt,
+      revoked_at: null,
+      revoke_reason: null,
+    });
+    return session;
+  },
+  async gasesteActiva(id) {
+    const session = sessions.get(id);
+    if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) return null;
+    return session;
+  },
+  async roteste({ id, expectedHash, newHash, expiresAt }) {
+    const session = sessions.get(id);
+    if (!session || session.revoked_at || session.refresh_token_hash !== expectedHash) return null;
+    session.refresh_token_hash = newHash;
+    session.expires_at = expiresAt;
+    return { id: session.id, user_id: session.user_id, expires_at: session.expires_at };
+  },
+  async revoca(id, expectedHash, reason = 'logout') {
+    const session = sessions.get(id);
+    if (!session || session.revoked_at || session.refresh_token_hash !== expectedHash) return false;
+    session.revoked_at = new Date();
+    session.revoke_reason = reason;
+    return true;
+  },
+  async revocaToatePentruUser(userId, reason = 'security') {
+    let count = 0;
+    for (const session of sessions.values()) {
+      if (session.user_id === userId && !session.revoked_at) {
+        session.revoked_at = new Date();
+        session.revoke_reason = reason;
+        count += 1;
+      }
+    }
+    return count;
   },
 };
 
@@ -112,6 +159,7 @@ function mockModule(modulePath, exports) {
 }
 
 mockModule('../src/models/users.model', fakeUsersModel);
+mockModule('../src/models/sessions.model', fakeSessionsModel);
 mockModule('../src/models/avarii.model', fakeAvariiModel);
 mockModule('../src/models/push-subscriptions.model', fakePushSubscriptionsModel);
 mockModule('../src/services/push-notifications.service', fakePushService);
@@ -136,16 +184,18 @@ beforeEach(() => {
   citesteToateCalls = 0;
   pushSubscriptions.clear();
   pushCalls.length = 0;
+  sessions.clear();
 });
 
 after(async () => {
   if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 });
 
-async function requestJson(path, { method = 'GET', body, token } = {}) {
+async function requestJson(path, { method = 'GET', body, token, cookie } = {}) {
   const headers = {};
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (token) headers.authorization = `Bearer ${token}`;
+  if (cookie) headers.cookie = cookie;
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
@@ -180,6 +230,11 @@ test('auth: înregistrarea hashuiește parola, iar loginul validează parola', a
   assert.equal(registered.response.status, 201);
   assert.equal(registered.body.user.email, credentials.email);
   assert.equal(typeof registered.body.token, 'string');
+  const accessPayload = JSON.parse(Buffer.from(registered.body.token.split('.')[0], 'base64url').toString('utf8'));
+  assert.equal(accessPayload.typ, 'access');
+  assert.ok(accessPayload.exp > accessPayload.iat);
+  assert.ok(accessPayload.exp - accessPayload.iat <= 900);
+  assert.match(registered.response.headers.get('set-cookie') || '', /avarii_refresh=/);
   assert.equal('parola' in registered.body.user, false);
 
   const stored = users.get(credentials.email);
@@ -201,6 +256,76 @@ test('auth: înregistrarea hashuiește parola, iar loginul validează parola', a
     rol: 'user',
   });
   assert.equal(rejected.response.status, 401);
+});
+
+test('auth cetățean: tokenurile vechi fără expirare nu mai autorizează conturile user', async () => {
+  const { hashPassword } = require('../src/security/passwords');
+  const { createToken } = require('../src/security/tokens');
+  const user = {
+    id: 'legacy-user', prenume: 'User', nume: 'Vechi', email: 'legacy@example.test',
+    parola: hashPassword('ParolaSigura123!'), rol: 'user',
+  };
+  users.set(user.email, user);
+
+  const legacyToken = createToken(user);
+  const response = await requestJson('/notifications/subscription', {
+    method: 'POST',
+    token: legacyToken,
+    body: {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/legacy-user-test',
+      expirationTime: null,
+      keys: { p256dh: 'A'.repeat(87), auth: 'B'.repeat(22) },
+    },
+  });
+  assert.equal(response.response.status, 401);
+});
+
+test('auth cetățean: refresh-ul rotește cookie-ul, iar logout-ul revocă sesiunea', async () => {
+  const registered = await postJson('/auth/register', {
+    prenume: 'Ioana',
+    nume: 'Marin',
+    email: 'ioana@example.test',
+    parola: 'ParolaSigura123!',
+  });
+  assert.equal(registered.response.status, 201);
+
+  const firstSetCookie = registered.response.headers.get('set-cookie') || '';
+  const firstCookie = firstSetCookie.split(';')[0];
+  assert.match(firstCookie, /^avarii_refresh=/);
+  assert.match(firstSetCookie, /HttpOnly/i);
+  assert.match(firstSetCookie, /SameSite=Strict/i);
+
+  const refreshed = await requestJson('/auth/refresh', {
+    method: 'POST',
+    cookie: firstCookie,
+  });
+  assert.equal(refreshed.response.status, 200);
+  assert.equal(refreshed.body.user.email, 'ioana@example.test');
+  assert.equal(typeof refreshed.body.token, 'string');
+
+  const secondSetCookie = refreshed.response.headers.get('set-cookie') || '';
+  const secondCookie = secondSetCookie.split(';')[0];
+  assert.match(secondCookie, /^avarii_refresh=/);
+  assert.notEqual(secondCookie, firstCookie);
+
+  const oldTokenRejected = await requestJson('/auth/refresh', {
+    method: 'POST',
+    cookie: firstCookie,
+  });
+  assert.equal(oldTokenRejected.response.status, 401);
+
+  const loggedOut = await fetch(`${baseUrl}/auth/logout`, {
+    method: 'POST',
+    headers: { cookie: secondCookie },
+  });
+  assert.equal(loggedOut.status, 204);
+  assert.match(loggedOut.headers.get('set-cookie') || '', /avarii_refresh=/);
+
+  const afterLogout = await requestJson('/auth/refresh', {
+    method: 'POST',
+    cookie: secondCookie,
+  });
+  assert.equal(afterLogout.response.status, 401);
 });
 
 test('listare sesizări: întoarce toate sesizările în ordine stabilă, fără paginare', async () => {

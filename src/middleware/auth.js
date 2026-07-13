@@ -6,6 +6,9 @@ async function readAuth(req) {
   if (!header.startsWith('Bearer ')) return null;
   const payload = verifyToken(header.slice(7));
   if (!payload) return null;
+  // Tokenurile vechi fără expirare rămân acceptate momentan numai pentru admin.
+  // Cetățenii trebuie să folosească access tokenuri scurte emise de sesiunea nouă.
+  if (payload.rol === 'user' && payload.typ !== 'access') return null;
   const user = await usersModel.gasesteDupaId(payload.sub);
   if (!user || user.rol !== payload.rol) return null;
   return { id: user.id, rol: user.rol, email: user.email, prenume: user.prenume, nume: user.nume };
